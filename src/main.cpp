@@ -6,10 +6,12 @@ const int pinSetaDireita = 35;
 const int pinCintoSeguranca = 36;
 const int pinFreioDeMao = 37;
 const int pinEmbreagem = 32;
+
 String estadoSetaEsquerda = "desligada";
 String estadoSetaDireita = "desligada";
 String estadoCintoSeguranca = "desligado";
 String estadoFreioDeMao = "desligado";
+int estadoEmbreagem = -1; // Inicializado com um valor que não é possível para garantir a primeira impressão
 
 void desenharSetaDireita(int x, int y)
 {
@@ -52,7 +54,7 @@ void desenharFreioDeMao(int x, int y)
 void desenharEmbreagem(int x, int y, int nivel)
 {
   // Ajusta o nível para garantir que esteja dentro do intervalo [0, 100]
-  nivel = constrain(nivel, 0, 80);
+  nivel = constrain(nivel, 0, 100);
 
   // Desenha a barra de progresso para representar o nível da embreagem
   Heltec.display->drawProgressBar(x, y, 80, 7, nivel);
@@ -64,8 +66,8 @@ void limparTela()
   Heltec.display->display();
 }
 
-void setup()
-{
+void setup() {
+  Serial.begin(115200);
   Heltec.begin(true, false, true);
   pinMode(pinSetaEsquerda, INPUT);
   pinMode(pinSetaDireita, INPUT);
@@ -77,8 +79,7 @@ void setup()
   limparTela();
 }
 
-void loop()
-{
+void loop() {
   // Leitura do estado dos sensores
   int valorSetaEsquerda = analogReadMilliVolts(pinSetaEsquerda);
   int valorSetaDireita = analogReadMilliVolts(pinSetaDireita);
@@ -87,35 +88,37 @@ void loop()
   int valorEmbreagem = analogReadMilliVolts(pinEmbreagem);
 
   // Verifica se houve mudança no estado da seta esquerda
-  if ((valorSetaEsquerda > 350 && estadoSetaEsquerda == "desligada") ||
-      (valorSetaEsquerda <= 350 && estadoSetaEsquerda == "ligada"))
-  {
-    estadoSetaEsquerda = (valorSetaEsquerda > 350) ? "ligada" : "desligada";
+  if ((valorSetaEsquerda > 1000 && estadoSetaEsquerda == "desligada") ||
+      (valorSetaEsquerda <= 1000 && estadoSetaEsquerda == "ligada")) {
+    estadoSetaEsquerda = (valorSetaEsquerda > 1000) ? "ligada" : "desligada";
     Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
   }
 
   // Verifica se houve mudança no estado da seta direita
-  if ((valorSetaDireita > 350 && estadoSetaDireita == "desligada") ||
-      (valorSetaDireita <= 350 && estadoSetaDireita == "ligada"))
-  {
-    estadoSetaDireita = (valorSetaDireita > 350) ? "ligada" : "desligada";
+  if ((valorSetaDireita > 1000 && estadoSetaDireita == "desligada") ||
+      (valorSetaDireita <= 1000 && estadoSetaDireita == "ligada")) {
+    estadoSetaDireita = (valorSetaDireita > 1000) ? "ligada" : "desligada";
     Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
   }
 
   // Verifica se houve mudança no estado do cinto de segurança
-  if ((valorCintoSeguranca > 350 && estadoCintoSeguranca == "desligado") ||
-      (valorCintoSeguranca <= 350 && estadoCintoSeguranca == "ligado"))
-  {
-    estadoCintoSeguranca = (valorCintoSeguranca > 350) ? "ligado" : "desligado";
+  if ((valorCintoSeguranca > 1000 && estadoCintoSeguranca == "desligado") ||
+      (valorCintoSeguranca <= 1000 && estadoCintoSeguranca == "ligado")) {
+    estadoCintoSeguranca = (valorCintoSeguranca > 1000) ? "ligado" : "desligado";
     Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
   }
 
   // Verifica se houve mudança no estado do freio de mão
-  if ((valorFreioDeMao > 350 && estadoFreioDeMao == "desligado") ||
-      (valorFreioDeMao <= 350 && estadoFreioDeMao == "ligado"))
-  {
-    estadoFreioDeMao = (valorFreioDeMao > 350) ? "ligado" : "desligado";
+  if ((valorFreioDeMao > 1000 && estadoFreioDeMao == "desligado") ||
+      (valorFreioDeMao <= 1000 && estadoFreioDeMao == "ligado")) {
+    estadoFreioDeMao = (valorFreioDeMao > 1000) ? "ligado" : "desligado";
     Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
+  }
+
+  // Verifica se houve mudança no estado da embreagem
+  if (valorEmbreagem != estadoEmbreagem) {
+    estadoEmbreagem = valorEmbreagem;
+    Serial.printf("Embreagem: %d\n", estadoEmbreagem);
   }
 
   // Desenha os elementos na tela
@@ -133,7 +136,7 @@ void loop()
   if (estadoFreioDeMao == "ligado")
     desenharFreioDeMao(50, 10);
 
-  desenharEmbreagem(20, 52, map(valorEmbreagem, 0, 3300, 0, 100));
+  desenharEmbreagem(20, 52, map(estadoEmbreagem, 0, 3300, 0, 100));
 
   Heltec.display->display();
 
