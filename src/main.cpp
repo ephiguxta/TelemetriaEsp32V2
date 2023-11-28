@@ -5,6 +5,7 @@ const int pinSetaEsquerda = 34;
 const int pinSetaDireita = 35;
 const int pinCintoSeguranca = 36;
 const int pinFreioDeMao = 37;
+const int pinEmbreagem = 32;
 String estadoSetaEsquerda = "desligada";
 String estadoSetaDireita = "desligada";
 String estadoCintoSeguranca = "desligado";
@@ -48,6 +49,15 @@ void desenharFreioDeMao(int x, int y)
   Heltec.display->drawString(x, y, "FREIO");
 }
 
+void desenharEmbreagem(int x, int y, int nivel)
+{
+  // Ajusta o nível para garantir que esteja dentro do intervalo [0, 100]
+  nivel = constrain(nivel, 0, 80);
+
+  // Desenha a barra de progresso para representar o nível da embreagem
+  Heltec.display->drawProgressBar(x, y, 80, 7, nivel);
+}
+
 void limparTela()
 {
   Heltec.display->clear();
@@ -60,6 +70,8 @@ void setup()
   pinMode(pinSetaEsquerda, INPUT);
   pinMode(pinSetaDireita, INPUT);
   pinMode(pinCintoSeguranca, INPUT);
+  pinMode(pinFreioDeMao, INPUT);
+  pinMode(pinEmbreagem, INPUT);
   analogSetAttenuation(ADC_11db);
   Heltec.display->setContrast(255);
   limparTela();
@@ -72,6 +84,7 @@ void loop()
   int valorSetaDireita = analogReadMilliVolts(pinSetaDireita);
   int valorCintoSeguranca = analogReadMilliVolts(pinCintoSeguranca);
   int valorFreioDeMao = analogReadMilliVolts(pinFreioDeMao);
+  int valorEmbreagem = analogReadMilliVolts(pinEmbreagem);
 
   // Verifica se houve mudança no estado da seta esquerda
   if ((valorSetaEsquerda > 350 && estadoSetaEsquerda == "desligada") ||
@@ -115,10 +128,12 @@ void loop()
     desenharSetaDireita(100, 35);
 
   if (estadoCintoSeguranca == "ligado")
-    desenharCintoSeguranca(60, 40);
+    desenharCintoSeguranca(50, 20);
 
   if (estadoFreioDeMao == "ligado")
-    desenharFreioDeMao(60, 20);
+    desenharFreioDeMao(50, 10);
+
+  desenharEmbreagem(20, 52, map(valorEmbreagem, 0, 3300, 0, 100));
 
   Heltec.display->display();
 
