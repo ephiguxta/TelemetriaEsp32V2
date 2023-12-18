@@ -39,6 +39,13 @@ String estadoPortaAberta = "fechada";
 String estadoFreio = "desligado";
 int estadoEmbreagem = -1; // Inicializado com um valor que não é possível para garantir a primeira impressão
 
+String estadoAnteriorSetaEsquerda = "desligada";
+String estadoAnteriorSetaDireita = "desligada";
+String estadoAnteriorCintoSeguranca = "desligado";
+String estadoAnteriorFreioDeMao = "desligado";
+String estadoAnteriorPortaAberta = "fechada";
+String estadoAnteriorFreio = "desligado";
+
 String latitude = "0.0";
 String longitude = "0.0";
 String velocidade = "0.0";
@@ -106,32 +113,32 @@ void calibrarSensores() {
 
   // Calibração do sensor de cinto de segurança
   int leituraCinto = analogReadMilliVolts(pinCintoSeguranca);
-  estadoInicialCinto = (leituraCinto > 2000);
+  estadoInicialCinto = (leituraCinto > 3000);
   printf("Cinto de Segurança: %s\n", estadoInicialCinto ? "ligado" : "desligado");
 
   // Calibração do sensor de freio de mão
   int leituraFreioMao = analogReadMilliVolts(pinFreioDeMao);
-  estadoInicialFreioDeMao = (leituraFreioMao > 2000);
+  estadoInicialFreioDeMao = (leituraFreioMao > 3000);
   printf("Freio de Mão: %s\n", estadoInicialFreioDeMao ? "ligado" : "desligado");
 
   // Calibração do sensor de seta esquerda
   int leituraSetaEsquerda = analogReadMilliVolts(pinSetaEsquerda);
-  estadoInicialSetaEsquerda = (leituraSetaEsquerda > 2000);
+  estadoInicialSetaEsquerda = (leituraSetaEsquerda > 3000);
   printf("Seta Esquerda: %s\n", estadoInicialSetaEsquerda ? "ligada" : "desligada");
 //
   // Calibração do sensor de seta direita
   int leituraSetaDireita = analogReadMilliVolts(pinSetaDireita);
-  estadoInicialSetaDireita = (leituraSetaDireita > 2000);
+  estadoInicialSetaDireita = (leituraSetaDireita > 3000);
   printf("Seta Direita: %s\n", estadoInicialSetaDireita ? "ligada" : "desligada");
 
   // Calibração do sensor de porta aberta
   int leituraPortaAberta = analogReadMilliVolts(pinPortaAberta);
-  estadoInicialPortaAberta = (leituraPortaAberta > 2000);
+  estadoInicialPortaAberta = (leituraPortaAberta > 3000);
   printf("Porta: %s\n", estadoInicialPortaAberta ? "aberta" : "fechada");
 
   // Calibração do sensor de freio
   int leituraFreio = analogReadMilliVolts(pinFreio);
-  estadoInicialFreio = (leituraFreio > 2000);
+  estadoInicialFreio = (leituraFreio > 3000);
   printf("Freio: %s\n", estadoInicialFreio ? "ligado" : "desligado");
 
   Serial.println("Calibração concluída.\n\n\n");
@@ -312,25 +319,40 @@ void loop() {
   
   if(estadoInicialCinto == true)
   {
-    estadoCintoSeguranca = (valorCintoSeguranca > 2000) ? "desligado" : "ligado";
-    printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
+    estadoCintoSeguranca = (valorCintoSeguranca > 3000) ? "desligado" : "ligado";
+    if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
+    {
+      Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
+      estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
+    }
   }
   else
   {
-    estadoCintoSeguranca = (valorCintoSeguranca > 2000) ? "ligado" : "desligado";
-    printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
+    estadoCintoSeguranca = (valorCintoSeguranca > 3000) ? "ligado" : "desligado";
+    if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
+    {
+      Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
+      estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
+    }
   }
-
 
   if(estadoInicialFreioDeMao == true)
   {
-    estadoFreioDeMao = (valorFreioDeMao > 2000) ? "desligado" : "ligado";
-    printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
+    estadoFreioDeMao = (valorFreioDeMao > 3000) ? "desligado" : "ligado";
+    if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
+    {
+      Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
+      estadoAnteriorFreioDeMao = estadoFreioDeMao;
+    }
   }
   else
   {
-    estadoFreioDeMao = (valorFreioDeMao > 2000) ? "ligado" : "desligado";
-    printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
+    estadoFreioDeMao = (valorFreioDeMao > 3000) ? "ligado" : "desligado";
+    if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
+    {
+      Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
+      estadoAnteriorFreioDeMao = estadoFreioDeMao;
+    }
   }
 
   if (valorEmbreagem != estadoEmbreagem) {
@@ -340,46 +362,78 @@ void loop() {
 
   if(estadoInicialSetaEsquerda == true)
   {
-    estadoSetaEsquerda = (valorSetaEsquerda > 2000) ? "desligada" : "ligada";
-    printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
+    estadoSetaEsquerda = (valorSetaEsquerda > 3000) ? "desligada" : "ligada";
+    if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
+    {
+      Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
+      estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
+    }
   }
   else
   {
-    estadoSetaEsquerda = (valorSetaEsquerda > 2000) ? "ligada" : "desligada";
-    printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
+    estadoSetaEsquerda = (valorSetaEsquerda > 3000) ? "ligada" : "desligada";
+    if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
+    {
+      Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
+      estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
+    }
   }
 
   if(estadoInicialSetaDireita == true)
   {
-    estadoSetaDireita = (valorSetaDireita > 2000) ? "desligada" : "ligada";
-    printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
+    estadoSetaDireita = (valorSetaDireita > 3000) ? "desligada" : "ligada";
+    if(estadoAnteriorSetaDireita != estadoSetaDireita)
+    {
+      Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
+      estadoAnteriorSetaDireita = estadoSetaDireita;
+    }
   }
   else
   {
-    estadoSetaDireita = (valorSetaDireita > 2000) ? "ligada" : "desligada";
-    printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
+    estadoSetaDireita = (valorSetaDireita > 3000) ? "ligada" : "desligada";
+    if(estadoAnteriorSetaDireita != estadoSetaDireita)
+    {
+      Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
+      estadoAnteriorSetaDireita = estadoSetaDireita;
+    }
   }
 
   if(estadoInicialPortaAberta == true)
   {
-    estadoPortaAberta = (valorPortaAberta > 2000) ? "fechada" : "aberta";
-    printf("Porta: %s\n", estadoPortaAberta.c_str());
+    estadoPortaAberta = (valorPortaAberta > 3000) ? "fechada" : "aberta";
+    if(estadoAnteriorPortaAberta != estadoPortaAberta)
+    {
+      Serial.printf("Porta: %s\n", estadoPortaAberta.c_str());
+      estadoAnteriorPortaAberta = estadoPortaAberta;
+    }
   }
   else
   {
-    estadoPortaAberta = (valorPortaAberta > 2000) ? "aberta" : "fechada";
-    printf("Porta: %s\n", estadoPortaAberta.c_str());
+    estadoPortaAberta = (valorPortaAberta > 3000) ? "aberta" : "fechada";
+    if(estadoAnteriorPortaAberta != estadoPortaAberta)
+    {
+      Serial.printf("Porta: %s\n", estadoPortaAberta.c_str());
+      estadoAnteriorPortaAberta = estadoPortaAberta;
+    }
   }
   
   if (estadoInicialFreio == true)
   {
-    estadoFreio = (valorFreio > 2000) ? "desligado" : "ligado";
-    printf("Freio: %s\n", estadoFreio.c_str());
+    estadoFreio = (valorFreio > 3000) ? "desligado" : "ligado";
+    if(estadoAnteriorFreio != estadoFreio)
+    {
+      Serial.printf("Freio: %s\n", estadoFreio.c_str());
+      estadoAnteriorFreio = estadoFreio;
+    }
   }
   else
   {
-    estadoFreio = (valorFreio > 2000) ? "ligado" : "desligado";
-    printf("Freio: %s\n", estadoFreio.c_str());
+    estadoFreio = (valorFreio > 3000) ? "ligado" : "desligado";
+    if(estadoAnteriorFreio != estadoFreio)
+    {
+      Serial.printf("Freio: %s\n", estadoFreio.c_str());
+      estadoAnteriorFreio = estadoFreio;
+    }
   }
 
   // limparTela();
