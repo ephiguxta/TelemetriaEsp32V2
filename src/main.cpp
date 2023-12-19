@@ -1,5 +1,5 @@
 #include "Arduino.h"
-//#include "heltec.h"
+#include "heltec.h"
 #include <ESPAsyncWebServer.h>
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
@@ -144,70 +144,70 @@ void calibrarSensores() {
   Serial.println("Calibração concluída.\n\n\n");
 }
 
-// void desenharSetaDireita(int x, int y)
-// {
-//   int tamanhoSeta = 8; // Ajuste o tamanho da seta conforme necessário
-//   // Desenha o corpo da seta apontando para a direita
-//   Heltec.display->drawLine(x, y - 4, x + tamanhoSeta, y - 4);
-//   Heltec.display->drawLine(x, y + 4, x + tamanhoSeta, y + 4);
-//   Heltec.display->drawLine(x + tamanhoSeta, y + 4, x + tamanhoSeta, y + 8);
-//   Heltec.display->drawLine(x + tamanhoSeta, y - 4, x + tamanhoSeta, y - 8);
-//   //ponta
-//   Heltec.display->drawLine(x + tamanhoSeta, y + 8, x + tamanhoSeta + 8, y);
-//   Heltec.display->drawLine(x + tamanhoSeta, y - 8, x + tamanhoSeta + 8, y);
-// }
+void desenharSetaDireita(int x, int y)
+{
+  int tamanhoSeta = 8; // Ajuste o tamanho da seta conforme necessário
+  // Desenha o corpo da seta apontando para a direita
+  Heltec.display->drawLine(x, y - 4, x + tamanhoSeta, y - 4);
+  Heltec.display->drawLine(x, y + 4, x + tamanhoSeta, y + 4);
+  Heltec.display->drawLine(x + tamanhoSeta, y + 4, x + tamanhoSeta, y + 8);
+  Heltec.display->drawLine(x + tamanhoSeta, y - 4, x + tamanhoSeta, y - 8);
+  //ponta
+  Heltec.display->drawLine(x + tamanhoSeta, y + 8, x + tamanhoSeta + 8, y);
+  Heltec.display->drawLine(x + tamanhoSeta, y - 8, x + tamanhoSeta + 8, y);
+}
 
-// void desenharSetaEsquerda(int x, int y)
-// {
-//   int tamanhoSeta = 8; // Ajuste o tamanho da seta conforme necessário
-//   // Desenha o corpo da seta apontando para a esquerda
-//   Heltec.display->drawLine(x, y - 4, x + tamanhoSeta, y - 4);
-//   Heltec.display->drawLine(x, y + 4, x + tamanhoSeta, y + 4);
-//   Heltec.display->drawLine(x, y + 4, x, y + 8);
-//   Heltec.display->drawLine(x, y - 4, x, y - 8);
-//   //ponta
-//   Heltec.display->drawLine(x, y + 8, x - 8, y);
-//   Heltec.display->drawLine(x, y - 8, x - 8, y);
-// }
+void desenharSetaEsquerda(int x, int y)
+{
+  int tamanhoSeta = 8; // Ajuste o tamanho da seta conforme necessário
+  // Desenha o corpo da seta apontando para a esquerda
+  Heltec.display->drawLine(x, y - 4, x + tamanhoSeta, y - 4);
+  Heltec.display->drawLine(x, y + 4, x + tamanhoSeta, y + 4);
+  Heltec.display->drawLine(x, y + 4, x, y + 8);
+  Heltec.display->drawLine(x, y - 4, x, y - 8);
+  //ponta
+  Heltec.display->drawLine(x, y + 8, x - 8, y);
+  Heltec.display->drawLine(x, y - 8, x - 8, y);
+}
 
-// void desenharCintoSeguranca(int x, int y)
-// {
-//   //usar o heltec text pra escrever cinto
-//   Heltec.display->drawString(x, y, "Cinto");
-// }
+void desenharCintoSeguranca(int x, int y)
+{
+  //usar o heltec text pra escrever cinto
+  Heltec.display->drawString(x, y, "Cinto");
+}
 
-// void desenharFreioDeMao(int x, int y)
-// {
-//   //usar o heltec text pra escrever cinto
-//   Heltec.display->drawString(x, y, "Freio Mão");
-// }
+void desenharFreioDeMao(int x, int y)
+{
+  //usar o heltec text pra escrever cinto
+  Heltec.display->drawString(x, y, "Freio Mão");
+}
 
-// void desenharPorta(int x, int y)
-// {
-//   //usar o heltec text pra escrever cinto
-//   Heltec.display->drawString(x, y, "Porta");
-// }
+void desenharPorta(int x, int y)
+{
+  //usar o heltec text pra escrever cinto
+  Heltec.display->drawString(x, y, "Porta");
+}
 
-// void desenharFreio(int x, int y)
-// {
-//   //usar o heltec text pra escrever cinto
-//   Heltec.display->drawString(x, y, "Freio");
-// }
+void desenharFreio(int x, int y)
+{
+  //usar o heltec text pra escrever cinto
+  Heltec.display->drawString(x, y, "Freio");
+}
 
-// void desenharEmbreagem(int x, int y, int nivel)
-// {
-//   // Ajusta o nível para garantir que esteja dentro do intervalo [0, 100]
-//   nivel = constrain(nivel, 0, 100);
+void desenharEmbreagem(int x, int y, int nivel)
+{
+  // Ajusta o nível para garantir que esteja dentro do intervalo [0, 100]
+  nivel = constrain(nivel, 0, 100);
 
-//   // Desenha a barra de progresso para representar o nível da embreagem
-//   Heltec.display->drawProgressBar(x, y, 40, 7, nivel);
-// }
+  // Desenha a barra de progresso para representar o nível da embreagem
+  Heltec.display->drawProgressBar(x, y, 40, 7, nivel);
+}
 
-// void limparTela()
-// {
-//   Heltec.display->clear();
-//   Heltec.display->display();
-// }
+void limparTela()
+{
+  Heltec.display->clear();
+  Heltec.display->display();
+}
 
 // This custom version of delay() ensures that the gps object
 // is being "fed".
@@ -271,18 +271,18 @@ void setup() {
   // });
   
   //server.begin();
-  // Heltec.begin(true, false, true);
+  Heltec.begin(true, false, true);
   pinMode(pinSetaEsquerda, INPUT);
   pinMode(pinSetaDireita, INPUT);
   pinMode(pinCintoSeguranca, INPUT);
   pinMode(pinFreioDeMao, INPUT);
   pinMode(pinEmbreagem, INPUT);
   analogSetAttenuation(ADC_11db);
-  // Heltec.display->setContrast(255);
-  // //mudar o tamanho da fonte
-  // Heltec.display->setFont(ArialMT_Plain_10);
-  // limparTela();
-  // Heltec.display->flipScreenVertically();
+  Heltec.display->setContrast(255);
+  //mudar o tamanho da fonte
+  Heltec.display->setFont(ArialMT_Plain_10);
+  limparTela();
+  Heltec.display->flipScreenVertically();
 
   delay(1000); // Aguarda 1 segundo antes de iniciar a calibração
   calibrarSensores();
@@ -436,36 +436,36 @@ void loop() {
     }
   }
 
-  // limparTela();
+  limparTela();
 
-  // if (estadoSetaEsquerda == "ligada")
-  //   desenharSetaEsquerda(10, 32);
+  if (estadoSetaEsquerda == "ligada")
+    desenharSetaEsquerda(10, 32);
 
-  // if (estadoSetaDireita == "ligada")
-  //   desenharSetaDireita(110, 32);
+  if (estadoSetaDireita == "ligada")
+    desenharSetaDireita(110, 32);
 
-  // if (estadoCintoSeguranca == "ligado")
-  //   desenharCintoSeguranca(50, 25);
+  if (estadoCintoSeguranca == "ligado")
+    desenharCintoSeguranca(50, 25);
 
-  // if (estadoFreioDeMao == "ligado")
-  //   desenharFreioDeMao(38, 35);
+  if (estadoFreioDeMao == "ligado")
+    desenharFreioDeMao(38, 35);
 
-  // if (estadoPortaAberta == "aberta")
-  //   desenharPorta(2, 50);
+  if (estadoPortaAberta == "aberta")
+    desenharPorta(2, 50);
 
-  // if (estadoFreio == "ligado")
-  //   desenharFreio(100, 50);
+  if (estadoFreio == "ligado")
+    desenharFreio(100, 50);
     
   //imprimir na tela os dados do GPS
-  //Heltec.display->drawString(2, 0, data.c_str());
-  //Heltec.display->drawString(2, 8, hora.c_str());
-  //Heltec.display->drawString(70, 0, longitude.c_str());
-  //Heltec.display->drawString(70, 8, latitude.c_str());
-  //Heltec.display->drawString(70, 16, velocidade.c_str());
+  Heltec.display->drawString(2, 0, data.c_str());
+  Heltec.display->drawString(2, 8, hora.c_str());
+  Heltec.display->drawString(70, 0, longitude.c_str());
+  Heltec.display->drawString(70, 8, latitude.c_str());
+  Heltec.display->drawString(70, 16, velocidade.c_str());
 
-  //desenharEmbreagem(41, 53, map(estadoEmbreagem, 0, 3300, 0, 100));
+  desenharEmbreagem(41, 53, map(estadoEmbreagem, 0, 3300, 0, 100));
 
-  //Heltec.display->display();
+  Heltec.display->display();
 
   smartDelay(3000);
 }
