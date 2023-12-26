@@ -14,13 +14,14 @@ TinyGPSPlus gps;
 
 const char* ssid = "WEB-GPS";
 const char* password = "esp32password";
-const int pinSetaEsquerda = 36; //em teoria nao tem pulldown
-const int pinSetaDireita = 39;  //em teoria nao tem pulldown
+const int pinSetaEsquerda = 13; //em teoria tem pulldown
+const int pinSetaDireita = 15;  //em teoria tem pulldown
 const int pinCintoSeguranca = 34; //em teoria nao tem pulldown
 const int pinFreioDeMao = 35; //em teoria nao tem pulldown
 const int pinEmbreagem = 32; //em teoria tem pulldown
 const int pinPortaAberta = 33; //em teoria tem pulldown
 const int pinFreio = 25; //em teoria tem pulldown
+const int pinAcelerador = 4; //em teoria tem pulldown
 // talvez acelerador?
 // ignição vai ser apenas ver quando ele estiver ligado
 
@@ -38,6 +39,7 @@ String estadoFreioDeMao = "desligado";
 String estadoPortaAberta = "fechada";
 String estadoFreio = "desligado";
 int estadoEmbreagem = -1; // Inicializado com um valor que não é possível para garantir a primeira impressão
+int estadoAcelerador = -1; // Inicializado com um valor que não é possível para garantir a primeira impressão
 
 String estadoAnteriorSetaEsquerda = "desligada";
 String estadoAnteriorSetaDireita = "desligada";
@@ -272,10 +274,10 @@ void setup() {
   
   //server.begin();
   // Heltec.begin(true, false, true);
-  pinMode(pinSetaEsquerda, INPUT);
-  pinMode(pinSetaDireita, INPUT);
-  pinMode(pinCintoSeguranca, INPUT);
-  pinMode(pinFreioDeMao, INPUT);
+  pinMode(pinSetaEsquerda, INPUT_PULLDOWN);
+  pinMode(pinSetaDireita, INPUT_PULLDOWN);
+  pinMode(pinCintoSeguranca, INPUT_PULLDOWN);
+  pinMode(pinFreioDeMao, INPUT_PULLDOWN);
   pinMode(pinEmbreagem, INPUT_PULLDOWN);
   pinMode(pinPortaAberta, INPUT_PULLDOWN);
   pinMode(pinFreio, INPUT_PULLDOWN);
