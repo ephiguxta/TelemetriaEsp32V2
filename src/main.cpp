@@ -14,13 +14,13 @@ TinyGPSPlus gps;
 
 const char* ssid = "WEB-GPS";
 const char* password = "esp32password";
-const int pinSetaEsquerda = 36;
-const int pinSetaDireita = 39;
-const int pinCintoSeguranca = 34;
-const int pinFreioDeMao = 35;
-const int pinEmbreagem = 32;
-const int pinPortaAberta = 33;
-const int pinFreio = 25;
+const int pinSetaEsquerda = 36; //em teoria nao tem pulldown
+const int pinSetaDireita = 39;  //em teoria nao tem pulldown
+const int pinCintoSeguranca = 34; //em teoria nao tem pulldown
+const int pinFreioDeMao = 35; //em teoria nao tem pulldown
+const int pinEmbreagem = 32; //em teoria tem pulldown
+const int pinPortaAberta = 33; //em teoria tem pulldown
+const int pinFreio = 25; //em teoria tem pulldown
 // talvez acelerador?
 // ignição vai ser apenas ver quando ele estiver ligado
 
@@ -105,7 +105,7 @@ String readHora() {
   if (gps.time.isValid()) {
     return printHora();
   }
-  return "Invalid";
+  return "Invalid"; 
 }
 
 void calibrarSensores() {
@@ -276,7 +276,9 @@ void setup() {
   pinMode(pinSetaDireita, INPUT);
   pinMode(pinCintoSeguranca, INPUT);
   pinMode(pinFreioDeMao, INPUT);
-  pinMode(pinEmbreagem, INPUT);
+  pinMode(pinEmbreagem, INPUT_PULLDOWN);
+  pinMode(pinPortaAberta, INPUT_PULLDOWN);
+  pinMode(pinFreio, INPUT_PULLDOWN);
   analogSetAttenuation(ADC_11db);
   // Heltec.display->setContrast(255);
   // //mudar o tamanho da fonte
