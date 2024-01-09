@@ -1,16 +1,25 @@
 #include "Arduino.h"
 //#include "heltec.h"
 #include <ESPAsyncWebServer.h>
+#include <BluetoothSerial.h>
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 #include <HardwareSerial.h>
 
+#define BT_DISCOVER_TIME  6000
+esp_spp_sec_t sec_mask=ESP_SPP_SEC_NONE; // or ESP_SPP_SEC_ENCRYPT|ESP_SPP_SEC_AUTHENTICATE to request pincode confirmation
+esp_spp_role_t role=ESP_SPP_ROLE_SLAVE; // or ESP_SPP_ROLE_MASTER
+
 // Configuração do módulo GPS
 HardwareSerial gpsSerial(1);
-
 //AsyncWebServer server(80);
 // The TinyGPS++ object
 TinyGPSPlus gps;
+BTAddress addr;  // Certifique-se de que BTAddress seja o tipo correto para representar endereços Bluetooth
+int channel;
+BluetoothSerial SerialBT;
+
+int sppTotalCharsSent = 0;
 
 const char* ssid = "WEB-GPS";
 const char* password = "esp32password";
@@ -222,9 +231,161 @@ static void smartDelay(unsigned long ms) {
 	} while (millis() - start < ms);
 }
 
+void On_ESP_SPP_WRITE(esp_spp_cb_param_t *param)
+{
+  Serial.println("571 - ESP_SPP_WRITE_EVT: Bluetooth SPP write operation completed");
+  Serial.print("572 - Status = ");
+  switch (param->write.status)
+  {
+  case ESP_SPP_SUCCESS: // Successful operation
+    Serial.println("ESP_SPP_SUCCESS");
+    break;
+
+  case ESP_SPP_FAILURE: // Generic failure
+    Serial.println("ESP_SPP_FAILURE");
+    break;
+
+  case ESP_SPP_BUSY: // Temporarily can not handle this request
+    Serial.println("ESP_SPP_BUSY");
+    break;
+
+  case ESP_SPP_NO_DATA: // no data
+    Serial.println("ESP_SPP_NO_DATA");
+    break;
+
+  case ESP_SPP_NO_RESOURCE: // No more set pm control block
+    Serial.println("ESP_SPP_NO_RESOURCE");
+    break;
+
+  default:
+    Serial.println("UNKNOWN");
+    break;
+  }
+
+  Serial.print("595 - Bytes transmitted = ");
+  Serial.println(param->write.len, DEC);
+  sppTotalCharsSent += param->write.len;
+  Serial.print("598 - Total Bytes transmitted = ");
+  Serial.println(sppTotalCharsSent, DEC);
+
+  Serial.print("598 - Congestion = ");
+  if (param->write.cong)
+    Serial.println("TRUE");
+  else
+    Serial.println("FALSE");
+}
+
+// Lista de parametros para o callback
+//  1 para captura
+//  2 para requisicao de dados do GPS
+//  3 para enviar dados de reconhecimento facial
+//  4 para reiniciar o esp32
+void btCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
+{
+  if (event == ESP_SPP_SRV_OPEN_EVT)
+  {
+    Serial.println("Bluetooth Conectado!");
+  }
+  else if (event == ESP_SPP_CLOSE_EVT)
+  {
+    Serial.println("Bluetooth Desconectado!");
+  }
+  else if (event == ESP_SPP_WRITE_EVT)
+  {
+    Serial.println("Bluetooth Enviando Dados!");
+    On_ESP_SPP_WRITE(param);
+  }
+  else if (event == ESP_SPP_DATA_IND_EVT)
+
+  {
+    Serial.printf("ESP_SPP_DATA_IND_EVT len=%d, handle=%d\n\n", param->data_ind.len, param->data_ind.handle);
+    String stringRead = String(*param->data_ind.data);
+    int paramInt = stringRead.toInt() - 48;
+    Serial.printf("paramInt: %d\n", paramInt);
+    // trocar todos esses if elses por um unico switch case
+    switch (paramInt)
+    {
+    case 1:
+      Serial.println("Caso 1");
+      break;
+    case 2:
+      Serial.println("Caso 2");
+      break;
+    case 3:
+      Serial.println("Caso 3");
+      break;
+    case 4:
+      Serial.println("Reiniciando o ESP32");
+      ESP.restart();
+      break;
+    default:
+      break;
+    }
+  }
+}
+
+  void initBT(String content)
+{
+  if (!SerialBT.begin(content, true))
+  {
+    Serial.println("An error occurred initializing Bluetooth");
+    ESP.restart();
+  }
+  else
+  {
+    Serial.println("Bluetooth initialized");
+  }
+
+  Serial.println("Starting discoverAsync...");
+  BTScanResults* btDeviceList = SerialBT.getScanResults();  // maybe accessing from different threads!
+  if (SerialBT.discoverAsync([](BTAdvertisedDevice* pDevice) {
+      Serial.printf("Found a new device asynchronously: %s\n", pDevice->toString().c_str());
+    } )
+    ) {
+    delay(BT_DISCOVER_TIME);
+    Serial.print("Stopping discoverAsync... ");
+    SerialBT.discoverAsyncStop();
+    Serial.println("discoverAsync stopped");
+    delay(5000);
+    if (btDeviceList->getCount() > 0) {
+      for (int i = 0; i < btDeviceList->getCount(); i++) {
+        BTAdvertisedDevice *device = btDeviceList->getDevice(i);
+        // Verificar se o nome do dispositivo inicia com "SIGEAUTO"
+        if (device->getName().find("SIGEAUTO") == 0) {
+          Serial.println("Found a device with name starting with 'SIGEAUTO'");
+          // Obter os canais associados ao endereço Bluetooth
+          std::map<int, std::string> channels = SerialBT.getChannels(device->getAddress());
+          // Conectar apenas a este dispositivo
+          BTAddress addr = device->getAddress();
+          if (!channels.empty()) {
+            int channel = channels.begin()->first;
+            Serial.printf("Connecting to %s - %d\n", addr.toString().c_str(), channel);
+            if(SerialBT.connect(addr, channel, sec_mask, role))
+            {
+              Serial.println("Connected to device");
+            }
+            else
+            {
+              Serial.println("Failed to connect to device");
+            }
+          } else {
+            Serial.println("No channels available for the device.");
+          }
+          break;  // Sair do loop após encontrar o dispositivo desejado
+        }
+      }
+    } else {
+      Serial.println("No devices found during discoverAsync");
+    }
+  }
+
+  SerialBT.register_callback(btCallback);
+}
+
 void setup() {
   Serial.begin(115200);
   gpsSerial.begin(9600, SERIAL_8N1, 23, 22); // RX, TX
+  initBT("TELEMETRIA");
 
   //Setting the ESP as an access point
   //Serial.print("Setting AP (Access Point)…");
