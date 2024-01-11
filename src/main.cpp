@@ -5,6 +5,7 @@
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 #include <HardwareSerial.h>
+#include "WiFi.h"
 
 #define BT_DISCOVER_TIME  6000
 esp_spp_sec_t sec_mask=ESP_SPP_SEC_NONE; // or ESP_SPP_SEC_ENCRYPT|ESP_SPP_SEC_AUTHENTICATE to request pincode confirmation
@@ -20,6 +21,7 @@ int channel;
 BluetoothSerial SerialBT;
 
 int sppTotalCharsSent = 0;
+uint8_t mac[6];
 
 const char* ssid = "WEB-GPS";
 const char* password = "esp32password";
@@ -120,36 +122,36 @@ String readHora() {
 }
 
 void calibrarSensores() {
-  Serial.println("Iniciando calibração dos sensores. Por favor, aguarde...");
+  Serial.println("\nIniciando calibração dos sensores. Por favor, aguarde...");
 
   // Calibração do sensor de cinto de segurança
   int leituraCinto = analogReadMilliVolts(pinCintoSeguranca);
-  estadoInicialCinto = (leituraCinto > 3000);
+  estadoInicialCinto = (leituraCinto > 2800);
   printf("Cinto de Segurança: %s\n", estadoInicialCinto ? "ligado" : "desligado");
 
   // Calibração do sensor de freio de mão
   int leituraFreioMao = analogReadMilliVolts(pinFreioDeMao);
-  estadoInicialFreioDeMao = (leituraFreioMao > 3000);
+  estadoInicialFreioDeMao = (leituraFreioMao > 2800);
   printf("Freio de Mão: %s\n", estadoInicialFreioDeMao ? "ligado" : "desligado");
 
   // Calibração do sensor de seta esquerda
   int leituraSetaEsquerda = analogReadMilliVolts(pinSetaEsquerda);
-  estadoInicialSetaEsquerda = (leituraSetaEsquerda > 3000);
+  estadoInicialSetaEsquerda = (leituraSetaEsquerda > 2800);
   printf("Seta Esquerda: %s\n", estadoInicialSetaEsquerda ? "ligada" : "desligada");
 //
   // Calibração do sensor de seta direita
   int leituraSetaDireita = analogReadMilliVolts(pinSetaDireita);
-  estadoInicialSetaDireita = (leituraSetaDireita > 3000);
+  estadoInicialSetaDireita = (leituraSetaDireita > 2800);
   printf("Seta Direita: %s\n", estadoInicialSetaDireita ? "ligada" : "desligada");
 
   // Calibração do sensor de porta aberta
   int leituraPortaAberta = analogReadMilliVolts(pinPortaAberta);
-  estadoInicialPortaAberta = (leituraPortaAberta > 3000);
+  estadoInicialPortaAberta = (leituraPortaAberta > 2800);
   printf("Porta: %s\n", estadoInicialPortaAberta ? "aberta" : "fechada");
 
   // Calibração do sensor de freio
   int leituraFreio = analogReadMilliVolts(pinFreio);
-  estadoInicialFreio = (leituraFreio > 3000);
+  estadoInicialFreio = (leituraFreio > 2800);
   printf("Freio: %s\n", estadoInicialFreio ? "ligado" : "desligado");
 
   Serial.println("Calibração concluída.\n\n\n");
@@ -326,7 +328,7 @@ void btCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 
   void initBT(String content)
 {
-  if (!SerialBT.begin(content, true))
+  if (!SerialBT.begin(content))
   {
     Serial.println("An error occurred initializing Bluetooth");
     ESP.restart();
@@ -335,49 +337,34 @@ void btCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
   {
     Serial.println("Bluetooth initialized");
   }
+ 
+  // Serial.println("Starting synchronous discovery...");
+  // BTScanResults* btDeviceList = SerialBT.getScanResults();
+  // delay(BT_DISCOVER_TIME);
 
-  Serial.println("Starting discoverAsync...");
-  BTScanResults* btDeviceList = SerialBT.getScanResults();  // maybe accessing from different threads!
-  if (SerialBT.discoverAsync([](BTAdvertisedDevice* pDevice) {
-      Serial.printf("Found a new device asynchronously: %s\n", pDevice->toString().c_str());
-    } )
-    ) {
-    delay(BT_DISCOVER_TIME);
-    Serial.print("Stopping discoverAsync... ");
-    SerialBT.discoverAsyncStop();
-    Serial.println("discoverAsync stopped");
-    delay(5000);
-    if (btDeviceList->getCount() > 0) {
-      for (int i = 0; i < btDeviceList->getCount(); i++) {
-        BTAdvertisedDevice *device = btDeviceList->getDevice(i);
-        // Verificar se o nome do dispositivo inicia com "SIGEAUTO"
-        if (device->getName().find("SIGEAUTO") == 0) {
-          Serial.println("Found a device with name starting with 'SIGEAUTO'");
-          // Obter os canais associados ao endereço Bluetooth
-          std::map<int, std::string> channels = SerialBT.getChannels(device->getAddress());
-          // Conectar apenas a este dispositivo
-          BTAddress addr = device->getAddress();
-          if (!channels.empty()) {
-            int channel = channels.begin()->first;
-            Serial.printf("Connecting to %s - %d\n", addr.toString().c_str(), channel);
-            if(SerialBT.connect(addr, channel, sec_mask, role))
-            {
-              Serial.println("Connected to device");
-            }
-            else
-            {
-              Serial.println("Failed to connect to device");
-            }
-          } else {
-            Serial.println("No channels available for the device.");
-          }
-          break;  // Sair do loop após encontrar o dispositivo desejado
-        }
-      }
-    } else {
-      Serial.println("No devices found during discoverAsync");
-    }
-  }
+  // if (btDeviceList->getCount() > 0) {
+  //   for (int i = 0; i < btDeviceList->getCount(); i++) {
+  //     BTAdvertisedDevice *device = btDeviceList->getDevice(i);
+  //     Serial.printf("Device %d: Name: %s, Address: %s\n", i, device->getName().c_str(), device->getAddress().toString().c_str());
+
+  //     // Verificar se o nome do dispositivo inicia com "Redmi"
+  //     if (device->getName().find("Redmi") == 0) {
+  //       Serial.println("Found a device with name starting with 'Redmi'");
+  //       BTAddress addr = device->getAddress();
+  //       int channel = 1;  // Ajuste o canal conforme necessário
+  //       Serial.printf("Connecting to %s - %d\n", addr.toString().c_str(), channel);
+
+  //       if(SerialBT.connect(addr, channel, sec_mask, role)) {
+  //         Serial.println("Connected to device");
+  //       } else {
+  //         Serial.println("Failed to connect to device");
+  //       }
+  //       break;  // Sair do loop após encontrar o dispositivo desejado
+  //     }
+  //   }
+  // } else {
+  //   Serial.println("No devices found during synchronous discovery");
+  // }
 
   SerialBT.register_callback(btCallback);
 }
@@ -386,6 +373,20 @@ void setup() {
   Serial.begin(115200);
   gpsSerial.begin(9600, SERIAL_8N1, 23, 22); // RX, TX
   initBT("TELEMETRIA");
+
+  String macAddress;
+
+  WiFi.macAddress(mac);
+  // Converte o endereço MAC para uma string hexadecimal
+  for (int i = 0; i < 6; i++)
+  {
+    macAddress += String(mac[i], HEX);
+    if (i < 5)
+    {
+      macAddress += ":";
+    }
+  }
+  Serial.printf("MAC Address: %s\n", macAddress.c_str());
 
   //Setting the ESP as an access point
   //Serial.print("Setting AP (Access Point)…");
@@ -484,7 +485,7 @@ void loop() {
   
   if(estadoInicialCinto == true)
   {
-    estadoCintoSeguranca = (valorCintoSeguranca > 3000) ? "desligado" : "ligado";
+    estadoCintoSeguranca = (valorCintoSeguranca > 2800) ? "desligado" : "ligado";
     if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
     {
       Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
@@ -493,7 +494,7 @@ void loop() {
   }
   else
   {
-    estadoCintoSeguranca = (valorCintoSeguranca > 3000) ? "ligado" : "desligado";
+    estadoCintoSeguranca = (valorCintoSeguranca > 2800) ? "ligado" : "desligado";
     if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
     {
       Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
@@ -503,7 +504,7 @@ void loop() {
 
   if(estadoInicialFreioDeMao == true)
   {
-    estadoFreioDeMao = (valorFreioDeMao > 3000) ? "desligado" : "ligado";
+    estadoFreioDeMao = (valorFreioDeMao > 2800) ? "desligado" : "ligado";
     if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
     {
       Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
@@ -512,7 +513,7 @@ void loop() {
   }
   else
   {
-    estadoFreioDeMao = (valorFreioDeMao > 3000) ? "ligado" : "desligado";
+    estadoFreioDeMao = (valorFreioDeMao > 2800) ? "ligado" : "desligado";
     if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
     {
       Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
@@ -527,7 +528,7 @@ void loop() {
 
   if(estadoInicialSetaEsquerda == true)
   {
-    estadoSetaEsquerda = (valorSetaEsquerda > 3000) ? "desligada" : "ligada";
+    estadoSetaEsquerda = (valorSetaEsquerda > 2800) ? "desligada" : "ligada";
     if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
     {
       Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
@@ -536,7 +537,7 @@ void loop() {
   }
   else
   {
-    estadoSetaEsquerda = (valorSetaEsquerda > 3000) ? "ligada" : "desligada";
+    estadoSetaEsquerda = (valorSetaEsquerda > 2800) ? "ligada" : "desligada";
     if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
     {
       Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
@@ -546,7 +547,7 @@ void loop() {
 
   if(estadoInicialSetaDireita == true)
   {
-    estadoSetaDireita = (valorSetaDireita > 3000) ? "desligada" : "ligada";
+    estadoSetaDireita = (valorSetaDireita > 2800) ? "desligada" : "ligada";
     if(estadoAnteriorSetaDireita != estadoSetaDireita)
     {
       Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
@@ -555,7 +556,7 @@ void loop() {
   }
   else
   {
-    estadoSetaDireita = (valorSetaDireita > 3000) ? "ligada" : "desligada";
+    estadoSetaDireita = (valorSetaDireita > 2800) ? "ligada" : "desligada";
     if(estadoAnteriorSetaDireita != estadoSetaDireita)
     {
       Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
@@ -565,7 +566,7 @@ void loop() {
 
   if(estadoInicialPortaAberta == true)
   {
-    estadoPortaAberta = (valorPortaAberta > 3000) ? "fechada" : "aberta";
+    estadoPortaAberta = (valorPortaAberta > 2800) ? "fechada" : "aberta";
     if(estadoAnteriorPortaAberta != estadoPortaAberta)
     {
       Serial.printf("Porta: %s\n", estadoPortaAberta.c_str());
@@ -574,7 +575,7 @@ void loop() {
   }
   else
   {
-    estadoPortaAberta = (valorPortaAberta > 3000) ? "aberta" : "fechada";
+    estadoPortaAberta = (valorPortaAberta > 2800) ? "aberta" : "fechada";
     if(estadoAnteriorPortaAberta != estadoPortaAberta)
     {
       Serial.printf("Porta: %s\n", estadoPortaAberta.c_str());
@@ -584,7 +585,7 @@ void loop() {
   
   if (estadoInicialFreio == true)
   {
-    estadoFreio = (valorFreio > 3000) ? "desligado" : "ligado";
+    estadoFreio = (valorFreio > 2800) ? "desligado" : "ligado";
     if(estadoAnteriorFreio != estadoFreio)
     {
       Serial.printf("Freio: %s\n", estadoFreio.c_str());
@@ -593,12 +594,34 @@ void loop() {
   }
   else
   {
-    estadoFreio = (valorFreio > 3000) ? "ligado" : "desligado";
+    estadoFreio = (valorFreio > 2800) ? "ligado" : "desligado";
     if(estadoAnteriorFreio != estadoFreio)
     {
       Serial.printf("Freio: %s\n", estadoFreio.c_str());
       estadoAnteriorFreio = estadoFreio;
     }
+  }
+
+  if(SerialBT.connected(500))
+  {
+  Serial.println("Bluetooth Conectado!");
+  //printar no bluetooth todas as informações no formato "Freio: Verdadeiro"
+  SerialBT.print("Seta Direita: ");
+  SerialBT.println(estadoSetaDireita);
+  SerialBT.print("Seta Esquerda: ");
+  SerialBT.println(estadoSetaEsquerda);
+  SerialBT.print("Cinto de Segurança: ");
+  SerialBT.println(estadoCintoSeguranca);
+  SerialBT.print("Freio de Mão: ");
+  SerialBT.println(estadoFreioDeMao);
+  SerialBT.print("Porta: ");
+  SerialBT.println(estadoPortaAberta);
+  SerialBT.print("Freio: ");
+  SerialBT.println(estadoFreio);
+  SerialBT.print("Embreagem: ");
+  SerialBT.println(estadoEmbreagem);
+  SerialBT.print("Acelerador: ");
+  SerialBT.println(estadoAcelerador);
   }
 
   // limparTela();
@@ -632,5 +655,5 @@ void loop() {
 
   //Heltec.display->display();
 
-  smartDelay(3000);
+  smartDelay(2800);
 }
