@@ -157,73 +157,6 @@ void calibrarSensores() {
   Serial.println("Calibração concluída.\n\n\n");
 }
 
-// void desenharSetaDireita(int x, int y)
-// {
-//   int tamanhoSeta = 8; // Ajuste o tamanho da seta conforme necessário
-//   // Desenha o corpo da seta apontando para a direita
-//   Heltec.display->drawLine(x, y - 4, x + tamanhoSeta, y - 4);
-//   Heltec.display->drawLine(x, y + 4, x + tamanhoSeta, y + 4);
-//   Heltec.display->drawLine(x + tamanhoSeta, y + 4, x + tamanhoSeta, y + 8);
-//   Heltec.display->drawLine(x + tamanhoSeta, y - 4, x + tamanhoSeta, y - 8);
-//   //ponta
-//   Heltec.display->drawLine(x + tamanhoSeta, y + 8, x + tamanhoSeta + 8, y);
-//   Heltec.display->drawLine(x + tamanhoSeta, y - 8, x + tamanhoSeta + 8, y);
-// }
-
-// void desenharSetaEsquerda(int x, int y)
-// {
-//   int tamanhoSeta = 8; // Ajuste o tamanho da seta conforme necessário
-//   // Desenha o corpo da seta apontando para a esquerda
-//   Heltec.display->drawLine(x, y - 4, x + tamanhoSeta, y - 4);
-//   Heltec.display->drawLine(x, y + 4, x + tamanhoSeta, y + 4);
-//   Heltec.display->drawLine(x, y + 4, x, y + 8);
-//   Heltec.display->drawLine(x, y - 4, x, y - 8);
-//   //ponta
-//   Heltec.display->drawLine(x, y + 8, x - 8, y);
-//   Heltec.display->drawLine(x, y - 8, x - 8, y);
-// }
-
-// void desenharCintoSeguranca(int x, int y)
-// {
-//   //usar o heltec text pra escrever cinto
-//   Heltec.display->drawString(x, y, "Cinto");
-// }
-
-// void desenharFreioDeMao(int x, int y)
-// {
-//   //usar o heltec text pra escrever cinto
-//   Heltec.display->drawString(x, y, "Freio Mão");
-// }
-
-// void desenharPorta(int x, int y)
-// {
-//   //usar o heltec text pra escrever cinto
-//   Heltec.display->drawString(x, y, "Porta");
-// }
-
-// void desenharFreio(int x, int y)
-// {
-//   //usar o heltec text pra escrever cinto
-//   Heltec.display->drawString(x, y, "Freio");
-// }
-
-// void desenharEmbreagem(int x, int y, int nivel)
-// {
-//   // Ajusta o nível para garantir que esteja dentro do intervalo [0, 100]
-//   nivel = constrain(nivel, 0, 100);
-
-//   // Desenha a barra de progresso para representar o nível da embreagem
-//   Heltec.display->drawProgressBar(x, y, 40, 7, nivel);
-// }
-
-// void limparTela()
-// {
-//   Heltec.display->clear();
-//   Heltec.display->display();
-// }
-
-// This custom version of delay() ensures that the gps object
-// is being "fed".
 static void smartDelay(unsigned long ms) {
 	unsigned long start = millis();
 	do {
@@ -326,7 +259,8 @@ void btCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
   }
 }
 
-  void initBT(String content)
+// Função para inicializar o bluetooth
+void initBT(String content)
 {
   if (!SerialBT.begin(content))
   {
@@ -337,42 +271,27 @@ void btCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
   {
     Serial.println("Bluetooth initialized");
   }
- 
-  // Serial.println("Starting synchronous discovery...");
-  // BTScanResults* btDeviceList = SerialBT.getScanResults();
-  // delay(BT_DISCOVER_TIME);
 
-  // if (btDeviceList->getCount() > 0) {
-  //   for (int i = 0; i < btDeviceList->getCount(); i++) {
-  //     BTAdvertisedDevice *device = btDeviceList->getDevice(i);
-  //     Serial.printf("Device %d: Name: %s, Address: %s\n", i, device->getName().c_str(), device->getAddress().toString().c_str());
-
-  //     // Verificar se o nome do dispositivo inicia com "Redmi"
-  //     if (device->getName().find("Redmi") == 0) {
-  //       Serial.println("Found a device with name starting with 'Redmi'");
-  //       BTAddress addr = device->getAddress();
-  //       int channel = 1;  // Ajuste o canal conforme necessário
-  //       Serial.printf("Connecting to %s - %d\n", addr.toString().c_str(), channel);
-
-  //       if(SerialBT.connect(addr, channel, sec_mask, role)) {
-  //         Serial.println("Connected to device");
-  //       } else {
-  //         Serial.println("Failed to connect to device");
-  //       }
-  //       break;  // Sair do loop após encontrar o dispositivo desejado
-  //     }
-  //   }
-  // } else {
-  //   Serial.println("No devices found during synchronous discovery");
-  // }
 
   SerialBT.register_callback(btCallback);
+  Serial.println("The device started, now you can pair it with bluetooth");
+
+  delay(2000);
+
+  //tentar conectar o bluetooth dentro de um if
+  if(SerialBT.connect("Redmi Note 12"))
+  {
+    Serial.println("Conectado com sucesso!");
+  }
+  else
+  {
+    Serial.println("Falha ao conectar!");
+  }
 }
 
 void setup() {
   Serial.begin(115200);
   gpsSerial.begin(9600, SERIAL_8N1, 23, 22); // RX, TX
-  initBT("TELEMETRIA");
 
   String macAddress;
 
@@ -388,54 +307,6 @@ void setup() {
   }
   Serial.printf("MAC Address: %s\n", macAddress.c_str());
 
-  //Setting the ESP as an access point
-  //Serial.print("Setting AP (Access Point)…");
-  //Remove the password parameter, if you want the AP (Access Point) to be open
-  // WiFi.softAP(ssid, password);
-
-  // IPAddress IP = WiFi.softAPIP();
-  // Serial.print("AP IP address: ");
-  // Serial.println(IP);
-
-  // server.on("/latitude", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", readLatitude().c_str());
-  // });
-  // server.on("/longitude", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", readLongitude().c_str());
-  // });
-  // server.on("/velocidade", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", readSpeed().c_str());
-  // });
-  // server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", readData().c_str());
-  // });
-  // server.on("/hora", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", readHora().c_str());
-  // });
-  // server.on("/setaEsquerda", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", estadoSetaEsquerda.c_str());
-  // });
-  // server.on("/setaDireita", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", estadoSetaDireita.c_str());
-  // });
-  // server.on("/cintoSeguranca", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", estadoCintoSeguranca.c_str());
-  // });
-  // server.on("/freioDeMao", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", estadoFreioDeMao.c_str());
-  // });
-  // server.on("/portaAberta", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", estadoPortaAberta.c_str());
-  // });
-  // server.on("/freio", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", estadoFreio.c_str());
-  // });
-  // server.on("/embreagem", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", String(estadoEmbreagem).c_str());
-  // });
-  
-  //server.begin();
-  // Heltec.begin(true, false, true);
   pinMode(pinSetaEsquerda, INPUT_PULLDOWN);
   pinMode(pinSetaDireita, INPUT_PULLDOWN);
   pinMode(pinCintoSeguranca, INPUT_PULLDOWN);
@@ -444,15 +315,11 @@ void setup() {
   pinMode(pinPortaAberta, INPUT_PULLDOWN);
   pinMode(pinFreio, INPUT_PULLDOWN);
   analogSetAttenuation(ADC_11db);
-  // Heltec.display->setContrast(255);
-  // //mudar o tamanho da fonte
-  // Heltec.display->setFont(ArialMT_Plain_10);
-  // limparTela();
-  // Heltec.display->flipScreenVertically();
+
+  initBT("TelemetriaESP32");
 
   delay(1000); // Aguarda 1 segundo antes de iniciar a calibração
   calibrarSensores();
-  //limparTela();
 }
 
 void loop() {
@@ -532,6 +399,7 @@ void loop() {
     if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
     {
       Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
+      SerialBT.println("Seta Esquerda: " + estadoSetaEsquerda);
       estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
     }
   }
@@ -541,6 +409,7 @@ void loop() {
     if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
     {
       Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
+      SerialBT.println("Seta Esquerda: " + estadoSetaEsquerda);
       estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
     }
   }
@@ -551,6 +420,7 @@ void loop() {
     if(estadoAnteriorSetaDireita != estadoSetaDireita)
     {
       Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
+      SerialBT.println("Seta Direita: " + estadoSetaDireita);
       estadoAnteriorSetaDireita = estadoSetaDireita;
     }
   }
@@ -560,6 +430,7 @@ void loop() {
     if(estadoAnteriorSetaDireita != estadoSetaDireita)
     {
       Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
+      SerialBT.println("Seta Direita: " + estadoSetaDireita);
       estadoAnteriorSetaDireita = estadoSetaDireita;
     }
   }
@@ -602,58 +473,5 @@ void loop() {
     }
   }
 
-  if(SerialBT.connected(500))
-  {
-  Serial.println("Bluetooth Conectado!");
-  //printar no bluetooth todas as informações no formato "Freio: Verdadeiro"
-  SerialBT.print("Seta Direita: ");
-  SerialBT.println(estadoSetaDireita);
-  SerialBT.print("Seta Esquerda: ");
-  SerialBT.println(estadoSetaEsquerda);
-  SerialBT.print("Cinto de Segurança: ");
-  SerialBT.println(estadoCintoSeguranca);
-  SerialBT.print("Freio de Mão: ");
-  SerialBT.println(estadoFreioDeMao);
-  SerialBT.print("Porta: ");
-  SerialBT.println(estadoPortaAberta);
-  SerialBT.print("Freio: ");
-  SerialBT.println(estadoFreio);
-  SerialBT.print("Embreagem: ");
-  SerialBT.println(estadoEmbreagem);
-  SerialBT.print("Acelerador: ");
-  SerialBT.println(estadoAcelerador);
-  }
-
-  // limparTela();
-
-  // if (estadoSetaEsquerda == "ligada")
-  //   desenharSetaEsquerda(10, 32);
-
-  // if (estadoSetaDireita == "ligada")
-  //   desenharSetaDireita(110, 32);
-
-  // if (estadoCintoSeguranca == "ligado")
-  //   desenharCintoSeguranca(50, 25);
-
-  // if (estadoFreioDeMao == "ligado")
-  //   desenharFreioDeMao(38, 35);
-
-  // if (estadoPortaAberta == "aberta")
-  //   desenharPorta(2, 50);
-
-  // if (estadoFreio == "ligado")
-  //   desenharFreio(100, 50);
-    
-  //imprimir na tela os dados do GPS
-  //Heltec.display->drawString(2, 0, data.c_str());
-  //Heltec.display->drawString(2, 8, hora.c_str());
-  //Heltec.display->drawString(70, 0, longitude.c_str());
-  //Heltec.display->drawString(70, 8, latitude.c_str());
-  //Heltec.display->drawString(70, 16, velocidade.c_str());
-
-  //desenharEmbreagem(41, 53, map(estadoEmbreagem, 0, 3300, 0, 100));
-
-  //Heltec.display->display();
-
-  smartDelay(2800);
+  delay(2800);
 }
