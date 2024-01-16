@@ -7,6 +7,8 @@
 #include <HardwareSerial.h>
 #include "WiFi.h"
 
+const int iteracoes = 50;
+
 #define BT_DISCOVER_TIME  6000
 esp_spp_sec_t sec_mask=ESP_SPP_SEC_NONE; // or ESP_SPP_SEC_ENCRYPT|ESP_SPP_SEC_AUTHENTICATE to request pincode confirmation
 esp_spp_role_t role=ESP_SPP_ROLE_SLAVE; // or ESP_SPP_ROLE_MASTER
@@ -42,6 +44,7 @@ boolean estadoInicialSetaEsquerda;
 boolean estadoInicialSetaDireita;
 boolean estadoInicialPortaAberta;
 boolean estadoInicialFreio;
+boolean estadoInicialEmbreagem;
 
 String estadoSetaEsquerda = "desligada";
 String estadoSetaDireita = "desligada";
@@ -49,7 +52,7 @@ String estadoCintoSeguranca = "desligado";
 String estadoFreioDeMao = "desligado";
 String estadoPortaAberta = "fechada";
 String estadoFreio = "desligado";
-int estadoEmbreagem = -1; // Inicializado com um valor que não é possível para garantir a primeira impressão
+String estadoEmbreagem = "livre"; // Inicializado com um valor que não é possível para garantir a primeira impressão
 int estadoAcelerador = -1; // Inicializado com um valor que não é possível para garantir a primeira impressão
 
 String estadoAnteriorSetaEsquerda = "desligada";
@@ -58,12 +61,25 @@ String estadoAnteriorCintoSeguranca = "desligado";
 String estadoAnteriorFreioDeMao = "desligado";
 String estadoAnteriorPortaAberta = "fechada";
 String estadoAnteriorFreio = "desligado";
+String estadoAnteriorEmbreagem = "desligado";
 
 String latitude = "0.0";
 String longitude = "0.0";
 String velocidade = "0.0";
 String data = "00/00/00";
 String hora = "00:00:00";
+
+//criar uma função de média movel para filtrar ruido
+int mediaMilivolts(int pin)
+{
+  int media = 0;
+  for(int i = 0; i < iteracoes; i++)
+  {
+    media += analogReadMilliVolts(pin);
+  }
+  media = media / iteracoes;
+  return media;
+}
 
 String formatFloat(float value, int decimalPlaces) {
   char buffer[10];
@@ -125,46 +141,51 @@ void calibrarSensores() {
   Serial.println("\nIniciando calibração dos sensores. Por favor, aguarde...");
 
   // Calibração do sensor de cinto de segurança
-  int leituraCinto = analogReadMilliVolts(pinCintoSeguranca);
-  estadoInicialCinto = (leituraCinto > 2800);
+  int leituraCinto = mediaMilivolts(pinCintoSeguranca);
+  estadoInicialCinto = (leituraCinto > 3000);
   printf("Cinto de Segurança: %s\n", estadoInicialCinto ? "ligado" : "desligado");
 
   // Calibração do sensor de freio de mão
-  int leituraFreioMao = analogReadMilliVolts(pinFreioDeMao);
-  estadoInicialFreioDeMao = (leituraFreioMao > 2800);
+  int leituraFreioMao = mediaMilivolts(pinFreioDeMao);
+  estadoInicialFreioDeMao = (leituraFreioMao > 3000);
   printf("Freio de Mão: %s\n", estadoInicialFreioDeMao ? "ligado" : "desligado");
 
   // Calibração do sensor de seta esquerda
-  int leituraSetaEsquerda = analogReadMilliVolts(pinSetaEsquerda);
-  estadoInicialSetaEsquerda = (leituraSetaEsquerda > 2800);
+  int leituraSetaEsquerda = mediaMilivolts(pinSetaEsquerda);
+  estadoInicialSetaEsquerda = (leituraSetaEsquerda > 3000);
   printf("Seta Esquerda: %s\n", estadoInicialSetaEsquerda ? "ligada" : "desligada");
 //
   // Calibração do sensor de seta direita
-  int leituraSetaDireita = analogReadMilliVolts(pinSetaDireita);
-  estadoInicialSetaDireita = (leituraSetaDireita > 2800);
+  int leituraSetaDireita = mediaMilivolts(pinSetaDireita);
+  estadoInicialSetaDireita = (leituraSetaDireita > 3000);
   printf("Seta Direita: %s\n", estadoInicialSetaDireita ? "ligada" : "desligada");
 
   // Calibração do sensor de porta aberta
-  int leituraPortaAberta = analogReadMilliVolts(pinPortaAberta);
-  estadoInicialPortaAberta = (leituraPortaAberta > 2800);
+  int leituraPortaAberta = mediaMilivolts(pinPortaAberta);
+  estadoInicialPortaAberta = (leituraPortaAberta > 3000);
   printf("Porta: %s\n", estadoInicialPortaAberta ? "aberta" : "fechada");
 
   // Calibração do sensor de freio
-  int leituraFreio = analogReadMilliVolts(pinFreio);
-  estadoInicialFreio = (leituraFreio > 2800);
+  int leituraFreio = mediaMilivolts(pinFreio);
+  estadoInicialFreio = (leituraFreio > 3000);
   printf("Freio: %s\n", estadoInicialFreio ? "ligado" : "desligado");
+
+  // Calibração do sensor de embreagem
+  int leituraEmbreagem = mediaMilivolts(pinEmbreagem);
+  estadoInicialEmbreagem = (leituraEmbreagem > 3000);
+  printf("Embreagem: %s\n", estadoInicialEmbreagem ? "pressionada" : "livre");
 
   Serial.println("Calibração concluída.\n\n\n");
 }
 
-static void smartDelay(unsigned long ms) {
-	unsigned long start = millis();
-	do {
-		while (gpsSerial.available()) {
-			gps.encode(gpsSerial.read());
-		}
-	} while (millis() - start < ms);
-}
+// static void smartDelay(unsigned long ms) {
+// 	unsigned long start = millis();
+// 	do {
+// 		while (gpsSerial.available()) {
+// 			gps.encode(gpsSerial.read());
+// 		}
+// 	} while (millis() - start < ms);
+// }
 
 void On_ESP_SPP_WRITE(esp_spp_cb_param_t *param)
 {
@@ -324,78 +345,82 @@ void setup() {
 
 void loop() {
 
-  // latitude = readLatitude();
-  // longitude = readLongitude();
-  // velocidade = readSpeed();
-  // data = readData();
-  // hora = readHora();
-
-  // Serial.print("Latitude: ");
-  // Serial.println(latitude);
-  // Serial.print("Longitude: ");
-  // Serial.println(longitude);
-  // Serial.print("Velocidade: ");
-  // Serial.println(velocidade);
-  // Serial.print("Data: ");
-  // Serial.println(data);
-  // Serial.print("Hora: ");
-  // Serial.println(hora);
-
   // Leitura do estado dos sensores
-  int valorSetaEsquerda = analogReadMilliVolts(pinSetaEsquerda);
-  int valorSetaDireita = analogReadMilliVolts(pinSetaDireita);
-  int valorCintoSeguranca = analogReadMilliVolts(pinCintoSeguranca);
-  int valorFreioDeMao = analogReadMilliVolts(pinFreioDeMao);
-  int valorEmbreagem = analogRead(pinEmbreagem);
-  int valorPortaAberta = analogReadMilliVolts(pinPortaAberta);
-  int valorFreio = analogReadMilliVolts(pinFreio);
+  int valorSetaEsquerda = mediaMilivolts(pinSetaEsquerda);
+  int valorSetaDireita = mediaMilivolts(pinSetaDireita);
+  int valorCintoSeguranca = mediaMilivolts(pinCintoSeguranca);
+  int valorFreioDeMao = mediaMilivolts(pinFreioDeMao);
+  int valorEmbreagem = mediaMilivolts(pinEmbreagem);
+  int valorPortaAberta = mediaMilivolts(pinPortaAberta);
+  int valorFreio = mediaMilivolts(pinFreio);
+  int valorAcelerador = mediaMilivolts(pinAcelerador);
   
   if(estadoInicialCinto == true)
   {
-    estadoCintoSeguranca = (valorCintoSeguranca > 2800) ? "desligado" : "ligado";
+    estadoCintoSeguranca = (valorCintoSeguranca > 3000) ? "desligado" : "ligado";
     if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
     {
       Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
+      SerialBT.println("Cinto de Segurança: " + estadoCintoSeguranca);
       estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
     }
   }
   else
   {
-    estadoCintoSeguranca = (valorCintoSeguranca > 2800) ? "ligado" : "desligado";
+    estadoCintoSeguranca = (valorCintoSeguranca > 3000) ? "ligado" : "desligado";
     if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
     {
       Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
+      SerialBT.println("Cinto de Segurança: " + estadoCintoSeguranca);
       estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
     }
   }
 
   if(estadoInicialFreioDeMao == true)
   {
-    estadoFreioDeMao = (valorFreioDeMao > 2800) ? "desligado" : "ligado";
+    estadoFreioDeMao = (valorFreioDeMao > 3000) ? "desligado" : "ligado";
     if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
     {
       Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
+      SerialBT.println("Freio de Mão: " + estadoFreioDeMao);
       estadoAnteriorFreioDeMao = estadoFreioDeMao;
     }
   }
   else
   {
-    estadoFreioDeMao = (valorFreioDeMao > 2800) ? "ligado" : "desligado";
+    estadoFreioDeMao = (valorFreioDeMao > 3000) ? "ligado" : "desligado";
     if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
     {
       Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
+      SerialBT.println("Freio de Mão: " + estadoFreioDeMao);
       estadoAnteriorFreioDeMao = estadoFreioDeMao;
     }
   }
 
-  if (valorEmbreagem != estadoEmbreagem) {
-    estadoEmbreagem = valorEmbreagem;
-    Serial.printf("Embreagem: %d\n", estadoEmbreagem);
+  if(estadoInicialEmbreagem == true)
+  {
+    estadoEmbreagem = (valorEmbreagem > 3000) ? "livre" : "pressionada";
+    if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    {
+      Serial.printf("Embreagem: %s\n", estadoEmbreagem.c_str());
+      SerialBT.println("Embreagem: " + estadoEmbreagem);
+      estadoAnteriorEmbreagem = estadoEmbreagem;
+    }
+  }
+  else
+  {
+    estadoEmbreagem = (valorEmbreagem > 3000) ? "pressionada" : "livre";
+    if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    {
+      Serial.printf("Embreagem: %s\n", estadoEmbreagem.c_str());
+      SerialBT.println("Embreagem: " + estadoEmbreagem);
+      estadoAnteriorEmbreagem = estadoEmbreagem;
+    }
   }
 
   if(estadoInicialSetaEsquerda == true)
   {
-    estadoSetaEsquerda = (valorSetaEsquerda > 2800) ? "desligada" : "ligada";
+    estadoSetaEsquerda = (valorSetaEsquerda > 3000) ? "desligada" : "ligada";
     if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
     {
       Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
@@ -405,7 +430,7 @@ void loop() {
   }
   else
   {
-    estadoSetaEsquerda = (valorSetaEsquerda > 2800) ? "ligada" : "desligada";
+    estadoSetaEsquerda = (valorSetaEsquerda > 3000) ? "ligada" : "desligada";
     if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
     {
       Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
@@ -416,7 +441,7 @@ void loop() {
 
   if(estadoInicialSetaDireita == true)
   {
-    estadoSetaDireita = (valorSetaDireita > 2800) ? "desligada" : "ligada";
+    estadoSetaDireita = (valorSetaDireita > 3000) ? "desligada" : "ligada";
     if(estadoAnteriorSetaDireita != estadoSetaDireita)
     {
       Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
@@ -426,7 +451,7 @@ void loop() {
   }
   else
   {
-    estadoSetaDireita = (valorSetaDireita > 2800) ? "ligada" : "desligada";
+    estadoSetaDireita = (valorSetaDireita > 3000) ? "ligada" : "desligada";
     if(estadoAnteriorSetaDireita != estadoSetaDireita)
     {
       Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
@@ -437,41 +462,45 @@ void loop() {
 
   if(estadoInicialPortaAberta == true)
   {
-    estadoPortaAberta = (valorPortaAberta > 2800) ? "fechada" : "aberta";
+    estadoPortaAberta = (valorPortaAberta > 3000) ? "fechada" : "aberta";
     if(estadoAnteriorPortaAberta != estadoPortaAberta)
     {
       Serial.printf("Porta: %s\n", estadoPortaAberta.c_str());
+      SerialBT.println("Porta: " + estadoPortaAberta);
       estadoAnteriorPortaAberta = estadoPortaAberta;
     }
   }
   else
   {
-    estadoPortaAberta = (valorPortaAberta > 2800) ? "aberta" : "fechada";
+    estadoPortaAberta = (valorPortaAberta > 3000) ? "aberta" : "fechada";
     if(estadoAnteriorPortaAberta != estadoPortaAberta)
     {
       Serial.printf("Porta: %s\n", estadoPortaAberta.c_str());
+      SerialBT.println("Porta: " + estadoPortaAberta);
       estadoAnteriorPortaAberta = estadoPortaAberta;
     }
   }
   
   if (estadoInicialFreio == true)
   {
-    estadoFreio = (valorFreio > 2800) ? "desligado" : "ligado";
+    estadoFreio = (valorFreio > 3000) ? "desligado" : "ligado";
     if(estadoAnteriorFreio != estadoFreio)
     {
       Serial.printf("Freio: %s\n", estadoFreio.c_str());
+      SerialBT.println("Freio: " + estadoFreio);
       estadoAnteriorFreio = estadoFreio;
     }
   }
   else
   {
-    estadoFreio = (valorFreio > 2800) ? "ligado" : "desligado";
+    estadoFreio = (valorFreio > 3000) ? "ligado" : "desligado";
     if(estadoAnteriorFreio != estadoFreio)
     {
       Serial.printf("Freio: %s\n", estadoFreio.c_str());
+      SerialBT.println("Freio: " + estadoFreio);
       estadoAnteriorFreio = estadoFreio;
     }
   }
 
-  delay(2800);
+  delay(3000);
 }
