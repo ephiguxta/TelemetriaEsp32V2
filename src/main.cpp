@@ -18,15 +18,15 @@ HardwareSerial gpsSerial(1);
 //AsyncWebServer server(80);
 // The TinyGPS++ object
 TinyGPSPlus gps;
-BTAddress addr;  // Certifique-se de que BTAddress seja o tipo correto para representar endereços Bluetooth
 int channel;
 BluetoothSerial SerialBT;
 
 int sppTotalCharsSent = 0;
 uint8_t mac[6];
+static bool btScanAsync = true;
+static bool btScanSync = true;
 
-const char* ssid = "WEB-GPS";
-const char* password = "esp32password";
+const char* targetName = "SIGEAUTO";  // Parte do nome do servidor desejado
 const int pinSetaEsquerda = 13; //em teoria tem pulldown
 const int pinSetaDireita = 15;  //em teoria tem pulldown
 const int pinCintoSeguranca = 34; //em teoria nao tem pulldown
@@ -34,8 +34,7 @@ const int pinFreioDeMao = 35; //em teoria nao tem pulldown
 const int pinEmbreagem = 32; //em teoria tem pulldown
 const int pinPortaAberta = 33; //em teoria tem pulldown
 const int pinFreio = 25; //em teoria tem pulldown
-const int pinAcelerador = 4; //em teoria tem pulldown
-// talvez acelerador?
+// acelerador talvez não precisa pq ja tem a velocidade do gps
 // ignição vai ser apenas ver quando ele estiver ligado
 
 boolean estadoInicialCinto;
@@ -61,7 +60,7 @@ String estadoAnteriorCintoSeguranca = "desligado";
 String estadoAnteriorFreioDeMao = "desligado";
 String estadoAnteriorPortaAberta = "fechada";
 String estadoAnteriorFreio = "desligado";
-String estadoAnteriorEmbreagem = "desligado";
+String estadoAnteriorEmbreagem = "livre";
 
 String latitude = "0.0";
 String longitude = "0.0";
@@ -280,10 +279,24 @@ void btCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
   }
 }
 
+String targetAddress; // Declare the variable "targetAddress"
+
+void onAdvertisedDevice(BTAdvertisedDevice* pAdvertisedDevice) {
+  if (pAdvertisedDevice->haveName() && pAdvertisedDevice->getName() == targetName) {
+    Serial.println("Encontrou o dispositivo desejado!");
+
+    // Obtém o endereço MAC do dispositivo
+    targetAddress = pAdvertisedDevice->getAddress().toString();
+
+    // Aqui você pode adicionar o código para comunicação Bluetooth Serial com o dispositivo encontrado.
+    SerialBT.connect(targetAddress.c_str());
+  }
+}
+
 // Função para inicializar o bluetooth
 void initBT(String content)
 {
-  if (!SerialBT.begin(content))
+  if (!SerialBT.begin(content, true))
   {
     Serial.println("An error occurred initializing Bluetooth");
     ESP.restart();
@@ -293,21 +306,56 @@ void initBT(String content)
     Serial.println("Bluetooth initialized");
   }
 
-
   SerialBT.register_callback(btCallback);
   Serial.println("The device started, now you can pair it with bluetooth");
+  
+  //FAZER SCAN DE DISPOSITIVOS
+   if (btScanAsync) {
+    Serial.print("Starting asynchronous discovery... ");
+    if (SerialBT.discoverAsync(onAdvertisedDevice)) {
+      Serial.println("Findings will be reported in \"btAdvertisedDeviceFound\"");
+      delay(10000);
+      Serial.print("Stopping discoverAsync... ");
+      SerialBT.discoverAsyncStop();
+      Serial.println("stopped");
+    } else {
+      Serial.println("Error on discoverAsync f.e. not working after a \"connect\"");
+    }
+  }
+  
+  if (btScanSync) {
+    Serial.println("Starting synchronous discovery... ");
+    BTScanResults *pResults = SerialBT.discover(BT_DISCOVER_TIME);
+    if (pResults)
+    {
+      pResults->dump(&Serial);
+      //verificar se nos resultados tem o nome SIGEAUTO
+      String deviceName = pResults->getDevice(0)->getName().c_str();
+      if(deviceName.indexOf(targetName) != -1)
+      {
+        Serial.println("Encontrou o dispositivo desejado!");
+        // Obtém o endereço MAC do dispositivo
+        targetAddress = pResults->getDevice(0)->getAddress().toString();
+        // Aqui você pode adicionar o código para comunicação Bluetooth Serial com o dispositivo encontrado.
+        if(SerialBT.connect(targetAddress.c_str()))
+        {
+          Serial.println("Conectado com sucesso!");
+        }
+        else
+        {
+          Serial.println("Falha ao conectar!");
+        }
+      }
+      else
+      {
+        Serial.println("Não encontrou o dispositivo desejado!");
+      }
+    }
+  }
+
+  //fazer a conexão se encontrar algum com nome SIGEAUTO
 
   delay(2000);
-
-  //tentar conectar o bluetooth dentro de um if
-  if(SerialBT.connect("Redmi Note 12"))
-  {
-    Serial.println("Conectado com sucesso!");
-  }
-  else
-  {
-    Serial.println("Falha ao conectar!");
-  }
 }
 
 void setup() {
@@ -353,7 +401,6 @@ void loop() {
   int valorEmbreagem = mediaMilivolts(pinEmbreagem);
   int valorPortaAberta = mediaMilivolts(pinPortaAberta);
   int valorFreio = mediaMilivolts(pinFreio);
-  int valorAcelerador = mediaMilivolts(pinAcelerador);
   
   if(estadoInicialCinto == true)
   {
@@ -410,7 +457,7 @@ void loop() {
   else
   {
     estadoEmbreagem = (valorEmbreagem > 3000) ? "pressionada" : "livre";
-    if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    if(estadoAnteriorEmbreagem != estadoEmbreagem)
     {
       Serial.printf("Embreagem: %s\n", estadoEmbreagem.c_str());
       SerialBT.println("Embreagem: " + estadoEmbreagem);
