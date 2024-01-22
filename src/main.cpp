@@ -17,7 +17,6 @@ HardwareSerial gpsSerial(1);
 //AsyncWebServer server(80);
 // The TinyGPS++ object
 TinyGPSPlus gps;
-BTAddress addr;  // Certifique-se de que BTAddress seja o tipo correto para representar endereços Bluetooth
 int channel;
 
 int sppTotalCharsSent = 0;
