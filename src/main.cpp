@@ -48,10 +48,14 @@ static boolean connected = false;
 static boolean doScan = false;
 static BLERemoteCharacteristic* pRemoteCharacteristic;
 static BLEAdvertisedDevice* myDevice;
+static BLEAddress *pServerAddress;
 // The remote service we wish to connect to.
-static BLEUUID serviceUUID;
+static BLEUUID serviceUUID("e41f0284-a538-4fee-bdc5-3813f657a3f4");
 // The characteristic of the remote service we are interested in.
-static BLEUUID charUUID;
+static BLEUUID charUUID("5f96279b-d61b-4ac1-ac96-56dc0d3afab9");
+//Activate notify
+const uint8_t notificationOn[] = {0x1, 0x0};
+const uint8_t notificationOff[] = {0x0, 0x0};
 
 String estadoSetaEsquerda = "desligada";
 String estadoSetaDireita = "desligada";
@@ -185,117 +189,6 @@ void calibrarSensores() {
   Serial.println("Calibração concluída.\n\n\n");
 }
 
-// static void smartDelay(unsigned long ms) {
-// 	unsigned long start = millis();
-// 	do {
-// 		while (gpsSerial.available()) {
-// 			gps.encode(gpsSerial.read());
-// 		}
-// 	} while (millis() - start < ms);
-// }
-
-// void On_ESP_SPP_WRITE(esp_spp_cb_param_t *param)
-// {
-//   Serial.println("571 - ESP_SPP_WRITE_EVT: Bluetooth SPP write operation completed");
-//   Serial.print("572 - Status = ");
-//   switch (param->write.status)
-//   {
-//   case ESP_SPP_SUCCESS: // Successful operation
-//     Serial.println("ESP_SPP_SUCCESS");
-//     break;
-
-//   case ESP_SPP_FAILURE: // Generic failure
-//     Serial.println("ESP_SPP_FAILURE");
-//     break;
-
-//   case ESP_SPP_BUSY: // Temporarily can not handle this request
-//     Serial.println("ESP_SPP_BUSY");
-//     break;
-
-//   case ESP_SPP_NO_DATA: // no data
-//     Serial.println("ESP_SPP_NO_DATA");
-//     break;
-
-//   case ESP_SPP_NO_RESOURCE: // No more set pm control block
-//     Serial.println("ESP_SPP_NO_RESOURCE");
-//     break;
-
-//   default:
-//     Serial.println("UNKNOWN");
-//     break;
-//   }
-
-//   Serial.print("595 - Bytes transmitted = ");
-//   Serial.println(param->write.len, DEC);
-//   sppTotalCharsSent += param->write.len;
-//   Serial.print("598 - Total Bytes transmitted = ");
-//   Serial.println(sppTotalCharsSent, DEC);
-
-//   Serial.print("598 - Congestion = ");
-//   if (param->write.cong)
-//     Serial.println("TRUE");
-//   else
-//     Serial.println("FALSE");
-// }
-
-// Lista de parametros para o callback
-//  1 para captura
-//  2 para requisicao de dados do GPS
-//  3 para enviar dados de reconhecimento facial
-//  4 para reiniciar o esp32
-// void btCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
-// {
-//   if (event == ESP_SPP_SRV_OPEN_EVT)
-//   {
-//     Serial.println("Bluetooth Conectado!");
-//   }
-//   else if (event == ESP_SPP_CLOSE_EVT)
-//   {
-//     Serial.println("Bluetooth Desconectado!");
-//   }
-//   else if (event == ESP_SPP_WRITE_EVT)
-//   {
-//     Serial.println("Bluetooth Enviando Dados!");
-//     //On_ESP_SPP_WRITE(param);
-//   }
-//   else if (event == ESP_SPP_DATA_IND_EVT)
-
-//   {
-//     //Serial.printf("ESP_SPP_DATA_IND_EVT len=%d, handle=%d\n\n", param->data_ind.len, param->data_ind.handle);
-//     String stringRead;
-
-//     if(param->data_ind.len > 1){
-//       // Loop para percorrer os dados e construir a String
-//       for (int i = 0; i < param->data_ind.len; i++) {
-//         stringRead += char(param->data_ind.data[i]);
-//       }
-
-//     Serial.printf("Recebido: %s\n", stringRead.c_str());
-//     }
-//     else
-//     {
-//       switch (stringRead.toInt())
-//       {
-//       case 1:
-//         Serial.println("Caso 1");
-//         break;
-//       case 2:
-//         Serial.println("Caso 2");
-//         break;
-//       case 3:
-//         Serial.println("Caso 3");
-//         break;
-//       case 4:
-//         Serial.println("Reiniciando o ESP32");
-//         ESP.restart();
-//         break;
-//       default:
-//         break;
-//       }
-//     }
-//   }
-// }
-
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
   uint8_t* pData,
@@ -322,63 +215,44 @@ class MyClientCallback : public BLEClientCallbacks {
   }
 };
 
-bool connectToServer() {
-    Serial.print("Forming a connection to ");
-    Serial.println(myDevice->getAddress().toString().c_str());
-    
-    BLEClient*  pClient  = BLEDevice::createClient();
-    Serial.println(" - Created client");
+//Connect to the BLE Server that has the name, Service, and Characteristics
+bool connectToServer(BLEAddress pAddress) {
+   BLEClient* pClient = BLEDevice::createClient();
+ 
+  // Connect to the remove BLE Server.
+  pClient->connect(pAddress);
+  Serial.println(" - Connected to server");
+ 
+  // Obtain a reference to the service we are after in the remote BLE server.
+  BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
+  if (pRemoteService == nullptr) {
+    Serial.print("Failed to find our service UUID: ");
+    Serial.println(serviceUUID.toString().c_str());
+    return (false);
+  }
+ 
+  // Obtain a reference to the characteristics in the service of the remote BLE server.
+  pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
+ 
+  if (pRemoteCharacteristic == nullptr) {
+    Serial.print("Failed to find our characteristic UUID1");
+    return false;
+  }
 
-    pClient->setClientCallbacks(new MyClientCallback());
-
-    // Connect to the remove BLE Server.
-    if(pClient->connect(myDevice)) {
-      Serial.println(" - Connected to server");
-    } else {
-      Serial.println(" - Failed to connect to server");
-      return false;
-    }
-    
-    pClient->setMTU(517); //set client to request maximum MTU from server (default is 23 otherwise)
-  
-    // Obtain a reference to the service we are after in the remote BLE server.
-    BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
-    if (pRemoteService == nullptr) {
-      Serial.print("Failed to find our service UUID: ");
-      Serial.println(serviceUUID.toString().c_str());
-      pClient->disconnect();
-      return false;
-    }
-    Serial.println(" - Found our service");
-
-    // Obtain a reference to the characteristic in the service of the remote BLE server.
-    pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
-    if (pRemoteCharacteristic == nullptr) {
-      Serial.print("Failed to find our characteristic UUID: ");
-      Serial.println(charUUID.toString().c_str());
-      pClient->disconnect();
-      return false;
-    }
-    Serial.println(" - Found our characteristic");
-    // Read the value of the characteristic.
-    if(pRemoteCharacteristic->canRead()) {
-      std::string value = pRemoteCharacteristic->readValue();
-      Serial.print("The characteristic value was: ");
-      Serial.println(value.c_str());
-    }
-
-    if(pRemoteCharacteristic->canNotify())
+  Serial.println(" - Found our characteristics");
+ 
+  if(pRemoteCharacteristic->canNotify())
       pRemoteCharacteristic->registerForNotify(notifyCallback);
 
-    connected = true;
-    return true;
+  connected = true;
+  return true;
 }
 
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
   // The target substring to match in the device name
   const char* targetSubstring = "SIGEAUTO";
 
-  /**
+  /** EuVouMeAproximar
    * Called for each advertising BLE server.
    */
   void onResult(BLEAdvertisedDevice advertisedDevice) {
@@ -391,15 +265,10 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
       Serial.print("Found our device! Address: ");
       Serial.println(advertisedDevice.getAddress().toString().c_str());
       advertisedDevice.getScan()->stop();
+      pServerAddress = new BLEAddress(advertisedDevice.getAddress()); //Address of advertiser is the one we need
       myDevice = new BLEAdvertisedDevice(advertisedDevice);
       doConnect = true;
-      doScan = true;
-      //fazer a conexao
-      //if(connectToServer()) {
-      //  Serial.println("We are now connected to the BLE Server.");
-      //} else {
-      //  Serial.println("We have failed to connect to the server; there is nothin more we will do.");
-      //}
+      //doScan = true;
     } // Found our server
   } // onResult
 }; // MyAdvertisedDeviceCallbacks
@@ -449,8 +318,7 @@ void setup() {
   pinMode(pinFreio, INPUT_PULLDOWN);
   analogSetAttenuation(ADC_11db);
 
-  initBT("TelemetriaESP32");
-
+  initBT("Telemetria" + macAddress);
   delay(1000); // Aguarda 1 segundo antes de iniciar a calibração
   calibrarSensores();
 }
@@ -461,26 +329,14 @@ void loop() {
   // BLE Server with which we wish to connect.  Now we connect to it.  Once we are 
   // connected we set the connected flag to be true.
   if (doConnect == true) {
-    if (connectToServer()) {
+    if (connectToServer(*pServerAddress)) {
       Serial.println("We are now connected to the BLE Server.");
+      pRemoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*)notificationOn, 2, true);
     } else {
       Serial.println("We have failed to connect to the server; there is nothin more we will do.");
     }
     doConnect = false;
   }
-
-  // If we are connected to a peer BLE Server, update the characteristic each time we are reached
-  // with the current time since boot.
-  if (connected) {
-    String newValue = "Time since boot: " + String(millis()/1000);
-    Serial.println("Setting new characteristic value to \"" + newValue + "\"");
-    
-    // Set the characteristic's value to be the array of bytes that is actually a string.
-    pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
-  }else if(doScan){
-    BLEDevice::getScan()->start(0);  // this is just example to start scan after disconnect, most likely there is better way to do it in arduino
-  }
-  
 
   // Leitura do estado dos sensores
   int valorSetaEsquerda = mediaMilivolts(pinSetaEsquerda);
@@ -492,151 +348,170 @@ void loop() {
   int valorFreio = mediaMilivolts(pinFreio);
   int valorAcelerador = mediaMilivolts(pinAcelerador);
   
-  if(estadoInicialCinto == true)
+  if (connected) 
   {
-    estadoCintoSeguranca = (valorCintoSeguranca > 3000) ? "desligado" : "ligado";
-    if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
+    if(estadoInicialCinto == true)
     {
-      Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
-      //SerialBT.println("Cinto de Segurança: " + estadoCintoSeguranca);
-      estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
+      estadoCintoSeguranca = "Cinto: ";
+      estadoCintoSeguranca += (valorCintoSeguranca > 3000) ? "desligado" : "ligado";
+      if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
+      {
+        Serial.printf(estadoCintoSeguranca.c_str());
+        pRemoteCharacteristic->writeValue(estadoCintoSeguranca.c_str(), estadoCintoSeguranca.length());
+        estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
+      }
     }
-  }
-  else
-  {
-    estadoCintoSeguranca = (valorCintoSeguranca > 3000) ? "ligado" : "desligado";
-    if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
+    else
     {
-      Serial.printf("Cinto de Segurança: %s\n", estadoCintoSeguranca.c_str());
-      //SerialBT.println("Cinto de Segurança: " + estadoCintoSeguranca);
-      estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
+      estadoCintoSeguranca = "Cinto: ";
+      estadoCintoSeguranca += (valorCintoSeguranca > 3000) ? "ligado" : "desligado";
+      if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
+      {
+        Serial.printf(estadoCintoSeguranca.c_str());
+        pRemoteCharacteristic->writeValue(estadoCintoSeguranca.c_str(), estadoCintoSeguranca.length());
+        estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
+      }
+    } 
+    if(estadoInicialFreioDeMao == true)
+    {
+      estadoFreioDeMao = "Freio de Mão: ";
+      estadoFreioDeMao += (valorFreioDeMao > 3000) ? "desligado" : "ligado";
+      if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
+      {
+        Serial.printf(estadoFreioDeMao.c_str());
+        pRemoteCharacteristic->writeValue(estadoFreioDeMao.c_str(), estadoFreioDeMao.length());
+        estadoAnteriorFreioDeMao = estadoFreioDeMao;
+      }
     }
-  }
+    else
+    {
+      estadoFreioDeMao = "Freio de Mão: ";
+      estadoFreioDeMao += (valorFreioDeMao > 3000) ? "ligado" : "desligado";
+      if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
+      {
+        Serial.printf(estadoFreioDeMao.c_str());
+        pRemoteCharacteristic->writeValue(estadoFreioDeMao.c_str(), estadoFreioDeMao.length());
+        estadoAnteriorFreioDeMao = estadoFreioDeMao;
+      }
+    }
 
-  if(estadoInicialFreioDeMao == true)
-  {
-    estadoFreioDeMao = (valorFreioDeMao > 3000) ? "desligado" : "ligado";
-    if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
+    if(estadoInicialEmbreagem == true)
     {
-      Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
-      //SerialBT.println("Freio de Mão: " + estadoFreioDeMao);
-      estadoAnteriorFreioDeMao = estadoFreioDeMao;
+      estadoEmbreagem = "Embreagem: ";
+      estadoEmbreagem += (valorEmbreagem > 3000) ? "livre" : "pressionada";
+      if(estadoEmbreagem != estadoAnteriorEmbreagem)
+      {
+        Serial.printf(estadoEmbreagem.c_str());
+        pRemoteCharacteristic->writeValue(estadoEmbreagem.c_str(), estadoEmbreagem.length());
+        estadoAnteriorEmbreagem = estadoEmbreagem;
+      }
     }
-  }
-  else
-  {
-    estadoFreioDeMao = (valorFreioDeMao > 3000) ? "ligado" : "desligado";
-    if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
+    else
     {
-      Serial.printf("Freio de Mão: %s\n", estadoFreioDeMao.c_str());
-      //SerialBT.println("Freio de Mão: " + estadoFreioDeMao);
-      estadoAnteriorFreioDeMao = estadoFreioDeMao;
+      estadoEmbreagem = "Embreagem: ";
+      estadoEmbreagem += (valorEmbreagem > 3000) ? "pressionada" : "livre";
+      if(estadoEmbreagem != estadoAnteriorEmbreagem)
+      {
+        Serial.printf(estadoEmbreagem.c_str());
+        pRemoteCharacteristic->writeValue(estadoEmbreagem.c_str(), estadoEmbreagem.length());
+        estadoAnteriorEmbreagem = estadoEmbreagem;
+      }
     }
-  }
 
-  if(estadoInicialEmbreagem == true)
-  {
-    estadoEmbreagem = (valorEmbreagem > 3000) ? "livre" : "pressionada";
-    if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    if(estadoInicialSetaEsquerda == true)
     {
-      Serial.printf("Embreagem: %s\n", estadoEmbreagem.c_str());
-      //SerialBT.println("Embreagem: " + estadoEmbreagem);
-      estadoAnteriorEmbreagem = estadoEmbreagem;
+      estadoSetaEsquerda = "Seta Esquerda: ";
+      estadoSetaEsquerda += (valorSetaEsquerda > 3000) ? "desligada" : "ligada";
+      if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
+      {
+        Serial.printf(estadoSetaEsquerda.c_str());
+        pRemoteCharacteristic->writeValue(estadoSetaEsquerda.c_str(), estadoSetaEsquerda.length());
+        estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
+      }
     }
-  }
-  else
-  {
-    estadoEmbreagem = (valorEmbreagem > 3000) ? "pressionada" : "livre";
-    if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    else
     {
-      Serial.printf("Embreagem: %s\n", estadoEmbreagem.c_str());
-      //SerialBT.println("Embreagem: " + estadoEmbreagem);
-      estadoAnteriorEmbreagem = estadoEmbreagem;
+      estadoSetaEsquerda = "Seta Esquerda: ";
+      estadoSetaEsquerda += (valorSetaEsquerda > 3000) ? "ligada" : "desligada";
+      if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
+      {
+        Serial.printf(estadoSetaEsquerda.c_str());
+        pRemoteCharacteristic->writeValue(estadoSetaEsquerda.c_str(), estadoSetaEsquerda.length());
+        estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
+      }
     }
-  }
 
-  if(estadoInicialSetaEsquerda == true)
-  {
-    estadoSetaEsquerda = (valorSetaEsquerda > 3000) ? "desligada" : "ligada";
-    if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
+    if(estadoInicialSetaDireita == true)
     {
-      Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
-      //SerialBT.println("Seta Esquerda: " + estadoSetaEsquerda);
-      estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
+      estadoSetaDireita = "Seta Direita: ";
+      estadoSetaDireita += (valorSetaDireita > 3000) ? "desligada" : "ligada";
+      if(estadoAnteriorSetaDireita != estadoSetaDireita)
+      {
+        Serial.printf(estadoSetaDireita.c_str());
+        pRemoteCharacteristic->writeValue(estadoSetaDireita.c_str(), estadoSetaDireita.length());
+        estadoAnteriorSetaDireita = estadoSetaDireita;
+      }
     }
-  }
-  else
-  {
-    estadoSetaEsquerda = (valorSetaEsquerda > 3000) ? "ligada" : "desligada";
-    if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
+    else
     {
-      Serial.printf("Seta Esquerda: %s\n", estadoSetaEsquerda.c_str());
-      //SerialBT.println("Seta Esquerda: " + estadoSetaEsquerda);
-      estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
+      estadoSetaDireita = "Seta Direita: ";
+      estadoSetaDireita += (valorSetaDireita > 3000) ? "ligada" : "desligada";
+      if(estadoAnteriorSetaDireita != estadoSetaDireita)
+      {
+        Serial.printf(estadoSetaDireita.c_str());
+        pRemoteCharacteristic->writeValue(estadoSetaDireita.c_str(), estadoSetaDireita.length());
+        estadoAnteriorSetaDireita = estadoSetaDireita;
+      }
     }
-  }
 
-  if(estadoInicialSetaDireita == true)
-  {
-    estadoSetaDireita = (valorSetaDireita > 3000) ? "desligada" : "ligada";
-    if(estadoAnteriorSetaDireita != estadoSetaDireita)
+    if(estadoInicialPortaAberta == true)
     {
-      Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
-      //SerialBT.println("Seta Direita: " + estadoSetaDireita);
-      estadoAnteriorSetaDireita = estadoSetaDireita;
+      estadoPortaAberta = "Porta: ";
+      estadoPortaAberta += (valorPortaAberta > 3000) ? "fechada" : "aberta";
+      if(estadoAnteriorPortaAberta != estadoPortaAberta)
+      {
+        Serial.printf(estadoPortaAberta.c_str());
+        pRemoteCharacteristic->writeValue(estadoPortaAberta.c_str(), estadoPortaAberta.length());
+        estadoAnteriorPortaAberta = estadoPortaAberta;
+      }
+    }
+    else
+    {
+      estadoPortaAberta = "Porta: ";
+      estadoPortaAberta += (valorPortaAberta > 3000) ? "aberta" : "fechada";
+      if(estadoAnteriorPortaAberta != estadoPortaAberta)
+      {
+        Serial.printf(estadoPortaAberta.c_str());
+        pRemoteCharacteristic->writeValue(estadoPortaAberta.c_str(), estadoPortaAberta.length());
+        estadoAnteriorPortaAberta = estadoPortaAberta;
+      }
+    }
+    
+    if (estadoInicialFreio == true)
+    {
+      estadoFreio = "Freio: ";
+      estadoFreio += (valorFreio > 3000) ? "desligado" : "ligado";
+      if(estadoAnteriorFreio != estadoFreio)
+      {
+        Serial.printf(estadoFreio.c_str());
+        pRemoteCharacteristic->writeValue(estadoFreio.c_str(), estadoFreio.length());
+        estadoAnteriorFreio = estadoFreio;
+      }
+    }
+    else
+    {
+      estadoFreio = "Freio: ";
+      estadoFreio += (valorFreio > 3000) ? "ligado" : "desligado";
+      if(estadoAnteriorFreio != estadoFreio)
+      {
+        Serial.printf(estadoFreio.c_str());
+        pRemoteCharacteristic->writeValue(estadoFreio.c_str(), estadoFreio.length());
+        estadoAnteriorFreio = estadoFreio;
+      }
     }
   }
-  else
-  {
-    estadoSetaDireita = (valorSetaDireita > 3000) ? "ligada" : "desligada";
-    if(estadoAnteriorSetaDireita != estadoSetaDireita)
-    {
-      Serial.printf("Seta Direita: %s\n", estadoSetaDireita.c_str());
-      //SerialBT.println("Seta Direita: " + estadoSetaDireita);
-      estadoAnteriorSetaDireita = estadoSetaDireita;
-    }
-  }
-
-  if(estadoInicialPortaAberta == true)
-  {
-    estadoPortaAberta = (valorPortaAberta > 3000) ? "fechada" : "aberta";
-    if(estadoAnteriorPortaAberta != estadoPortaAberta)
-    {
-      Serial.printf("Porta: %s\n", estadoPortaAberta.c_str());
-      //SerialBT.println("Porta: " + estadoPortaAberta);
-      estadoAnteriorPortaAberta = estadoPortaAberta;
-    }
-  }
-  else
-  {
-    estadoPortaAberta = (valorPortaAberta > 3000) ? "aberta" : "fechada";
-    if(estadoAnteriorPortaAberta != estadoPortaAberta)
-    {
-      Serial.printf("Porta: %s\n", estadoPortaAberta.c_str());
-      //SerialBT.println("Porta: " + estadoPortaAberta);
-      estadoAnteriorPortaAberta = estadoPortaAberta;
-    }
-  }
-  
-  if (estadoInicialFreio == true)
-  {
-    estadoFreio = (valorFreio > 3000) ? "desligado" : "ligado";
-    if(estadoAnteriorFreio != estadoFreio)
-    {
-      Serial.printf("Freio: %s\n", estadoFreio.c_str());
-      //SerialBT.println("Freio: " + estadoFreio);
-      estadoAnteriorFreio = estadoFreio;
-    }
-  }
-  else
-  {
-    estadoFreio = (valorFreio > 3000) ? "ligado" : "desligado";
-    if(estadoAnteriorFreio != estadoFreio)
-    {
-      Serial.printf("Freio: %s\n", estadoFreio.c_str());
-      //SerialBT.println("Freio: " + estadoFreio);
-      estadoAnteriorFreio = estadoFreio;
-    }
+  else if(doScan){
+    BLEDevice::getScan()->start(0);  // this is just example to start scan after disconnect, most likely there is better way to do it in arduino
   }
 
   delay(3000);
