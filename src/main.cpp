@@ -11,6 +11,19 @@
 #include <BLE2902.h>
 
 const int iteracoes = 50;
+#define SERVICE_UUID "e41f0284-a538-4fee-bdc5-3813f657a3f4"
+#define CHARACTERISTIC_UUID "5f96279b-d61b-4ac1-ac96-56dc0d3afab9"
+BLEServer* pServer = NULL;
+BLECharacteristic* pCharacteristic = NULL;
+BLECharacteristic* pCharDireita = NULL;
+BLECharacteristic* pCharEsquerda = NULL;
+BLECharacteristic* pCharFreio = NULL;
+BLECharacteristic* pCharFreioDeMao = NULL;
+BLECharacteristic* pCharEmbreagem = NULL;
+BLECharacteristic* pCharPorta = NULL;
+BLECharacteristic* pCharCinto = NULL;
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
 
 // Configuração do módulo GPS
 HardwareSerial gpsSerial(1);
@@ -273,22 +286,87 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
   } // onResult
 }; // MyAdvertisedDeviceCallbacks
 
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
+      BLEDevice::startAdvertising();
+      Serial.println("Device Connected");
+    };
+
+    void onDisconnect(BLEServer* pServer) {
+      deviceConnected = false;
+      Serial.println("Device Disconnected");
+    }
+};
+
+
+class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
+   void onWrite(BLECharacteristic *pCharacteristic) {
+      std::string value = pCharacteristic->getValue();
+      //aqui vou precisar fazer o seguinte, verificar as palavras recebidas e fazer um switch case, por exemplo pra informaçoes de "Embreagem" ou "Porta"
+      
+      String strValue = String(value.c_str());
+      //verificar se contem as palavras chave
+      // Verificar palavras-chave (com consistência de capitalização)
+    if (strstr(strValue.c_str(), "Embreagem") != nullptr) {
+        Serial.println(strValue);
+    } else if (strstr(strValue.c_str(), "Porta") != nullptr) {
+        Serial.println(strValue);
+    } else if (strstr(strValue.c_str(), "Cinto") != nullptr) {
+        Serial.println(strValue);
+    } else if (strstr(strValue.c_str(), "Freio") != nullptr) {
+        Serial.println(strValue);
+    } else if (strstr(strValue.c_str(), "Freio de Mão") != nullptr) {
+        Serial.println(strValue);
+    } else if (strstr(strValue.c_str(), "Seta Direita") != nullptr) {
+        Serial.println(strValue);
+    } else if (strstr(strValue.c_str(), "Seta Esquerda") != nullptr) {
+        Serial.println(strValue);
+    } else {
+        Serial.println("Nenhuma palavra chave encontrada");
+        Serial.println(strValue);
+    }
+   }
+};
+
 
 void initBT(String content)
 {
-  std::string contentStr = content.c_str(); // Convert String to std::string
-  Serial.println("Starting Arduino BLE Client application...");
-  BLEDevice::init(contentStr);
+    // Create the BLE Device
+  BLEDevice::init(std::string(content.c_str()));
 
-  // Retrieve a Scanner and set the callback we want to use to be informed when we
-  // have detected a new device.  Specify that we want active scanning and start the
-  // scan to run for 5 seconds.
-  BLEScan* pBLEScan = BLEDevice::getScan();
-  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setInterval(1349);
-  pBLEScan->setWindow(449);
-  pBLEScan->setActiveScan(true);
-  pBLEScan->start(5, false);
+  // Create the BLE Server
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  // Create the BLE Service
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+
+  // Create a BLE Characteristic
+  pCharacteristic = pService->createCharacteristic(
+                      CHARACTERISTIC_UUID,
+                      BLECharacteristic::PROPERTY_READ   |
+                      BLECharacteristic::PROPERTY_WRITE  |
+                      BLECharacteristic::PROPERTY_NOTIFY |
+                      BLECharacteristic::PROPERTY_INDICATE
+                    );
+
+  //callbacks
+  pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
+
+  // Create a BLE Descriptor
+  pCharacteristic->addDescriptor(new BLE2902());
+
+  // Start the service
+  pService->start();
+
+  // Start advertising
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(false);
+  pAdvertising->setMinPreferred(0x0);  // set value to 0x00 to not advertise this parameter
+  BLEDevice::startAdvertising();
+  Serial.println("Waiting a client connection to notify...");
 }
 
 void setup() {
@@ -346,7 +424,7 @@ void loop() {
   int valorEmbreagem = mediaMilivolts(pinEmbreagem);
   int valorPortaAberta = mediaMilivolts(pinPortaAberta);
   int valorFreio = mediaMilivolts(pinFreio);
-  int valorAcelerador = mediaMilivolts(pinAcelerador);
+  //int valorAcelerador = mediaMilivolts(pinAcelerador);
   
   if (connected) 
   {
@@ -440,7 +518,7 @@ void loop() {
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
     }
-
+//saw your face
     if(estadoInicialSetaDireita == true)
     {
       estadoSetaDireita = "Seta Direita: ";
@@ -508,7 +586,7 @@ void loop() {
         pRemoteCharacteristic->writeValue(estadoFreio.c_str(), estadoFreio.length());
         estadoAnteriorFreio = estadoFreio;
       }
-    }
+    } 
   }
   else if(doScan){
     BLEDevice::getScan()->start(0);  // this is just example to start scan after disconnect, most likely there is better way to do it in arduino
