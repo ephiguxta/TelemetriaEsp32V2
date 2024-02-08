@@ -15,13 +15,6 @@ const int iteracoes = 50;
 #define CHARACTERISTIC_UUID "5f96279b-d61b-4ac1-ac96-56dc0d3afab9"
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
-BLECharacteristic* pCharDireita = NULL;
-BLECharacteristic* pCharEsquerda = NULL;
-BLECharacteristic* pCharFreio = NULL;
-BLECharacteristic* pCharFreioDeMao = NULL;
-BLECharacteristic* pCharEmbreagem = NULL;
-BLECharacteristic* pCharPorta = NULL;
-BLECharacteristic* pCharCinto = NULL;
 bool deviceConnected = false;
 
 // Configuração do módulo GPS
@@ -206,25 +199,9 @@ class MyServerCallbacks: public BLEServerCallbacks {
       deviceConnected = false;
       Serial.println("Device Disconnected");
     }
-
-    void onWrite(BLECharacteristic *pCharacteristic) {
-      Serial.printf("Write value: %s\n", pCharacteristic->getValue().c_str());
-    }
-
-    void onNotify(BLECharacteristic *pCharacteristic) {
-      Serial.printf("Notify value: %s\n", pCharacteristic->getValue().c_str());
-    }
 };
 
 class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string value = pCharacteristic->getValue();
-      if (value.length() > 0) {
-        Serial.println("New value: ");
-        for (int i = 0; i < value.length(); i++)
-          Serial.print(value[i]);
-      }
-    }
 
     void onNotify(BLECharacteristic *pCharacteristic) {
       std::string value = pCharacteristic->getValue();
