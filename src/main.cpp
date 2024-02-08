@@ -99,7 +99,7 @@ int mediaMilivolts(int pin)
 }
 
 String formatFloat(float value, int decimalPlaces) {
-  char buffer[10];
+  char buffer[30];
   dtostrf(value, 0, decimalPlaces, buffer);
   return String(buffer);
 }
@@ -195,20 +195,6 @@ void calibrarSensores() {
   Serial.println("Calibração concluída.\n\n\n");
 }
 
-static void notifyCallback(
-  BLERemoteCharacteristic* pBLERemoteCharacteristic,
-  uint8_t* pData,
-  size_t length,
-  bool isNotify) {
-    Serial.print("Notify callback for characteristic ");
-    Serial.print(pBLERemoteCharacteristic->getUUID().toString().c_str());
-    Serial.print(" of data length ");
-    Serial.println(length);
-    Serial.print("data: ");
-    Serial.write(pData, length);
-    Serial.println();
-}
-
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
@@ -230,16 +216,26 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
-class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
-   void onWrite(BLECharacteristic *pCharacteristic) {
+class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
       std::string value = pCharacteristic->getValue();
-      //aqui vou precisar fazer o seguinte, verificar as palavras recebidas e fazer um switch case, por exemplo pra informaçoes de "Embreagem" ou "Porta"
-      
-      String strValue = String(value.c_str());
-      Serial.println("Valor escrito: " + strValue);
-   }
-};
+      if (value.length() > 0) {
+        Serial.println("New value: ");
+        for (int i = 0; i < value.length(); i++)
+          Serial.print(value[i]);
+      }
+    }
 
+    void onNotify(BLECharacteristic *pCharacteristic) {
+      std::string value = pCharacteristic->getValue();
+      if (value.length() > 0) {
+        Serial.print("Notify value: ");
+        for (int i = 0; i < value.length(); i++)
+          Serial.print(value[i]);
+      }
+      Serial.println();
+    }
+}; 
 
 void initBT(String content)
 {
@@ -252,7 +248,6 @@ void initBT(String content)
 
   // Create the BLE Service
   BLEService *pService = pServer->createService(SERVICE_UUID);
-
   // Create a BLE Characteristic
   pCharacteristic = pService->createCharacteristic(
                       CHARACTERISTIC_UUID,
@@ -261,12 +256,12 @@ void initBT(String content)
                       BLECharacteristic::PROPERTY_NOTIFY |
                       BLECharacteristic::PROPERTY_INDICATE
                     );
-
   //callbacks
-  pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
 
   // Create a BLE Descriptor
   pCharacteristic->addDescriptor(new BLE2902());
+  pCharacteristic->setNotifyProperty(true);
+  pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
 
   // Start the service
   pService->start();
@@ -308,7 +303,7 @@ void setup() {
   analogSetAttenuation(ADC_11db);
 
   initBT("Telemetria_" + macAddress);
-  delay(1000); // Aguarda 1 segundo antes de iniciar a calibração
+  delay(3000); // Aguarda 1 segundo antes de iniciar a calibração
   calibrarSensores();
 }
 
@@ -335,6 +330,7 @@ void loop() {
         Serial.println(estadoCintoSeguranca.c_str());
         pCharacteristic->setValue(estadoCintoSeguranca.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
       }
     }
@@ -347,6 +343,7 @@ void loop() {
         Serial.println(estadoCintoSeguranca.c_str());
         pCharacteristic->setValue(estadoCintoSeguranca.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
       }
     } 
@@ -359,6 +356,7 @@ void loop() {
         Serial.println(estadoFreioDeMao.c_str());
         pCharacteristic->setValue(estadoFreioDeMao.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorFreioDeMao = estadoFreioDeMao;
       }
     }
@@ -371,6 +369,7 @@ void loop() {
         Serial.println(estadoFreioDeMao.c_str());
         pCharacteristic->setValue(estadoFreioDeMao.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorFreioDeMao = estadoFreioDeMao;
       }
     }
@@ -384,6 +383,7 @@ void loop() {
         Serial.println(estadoEmbreagem.c_str());
         pCharacteristic->setValue(estadoEmbreagem.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorEmbreagem = estadoEmbreagem;
       }
     }
@@ -396,6 +396,7 @@ void loop() {
         Serial.println(estadoEmbreagem.c_str());
         pCharacteristic->setValue(estadoEmbreagem.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorEmbreagem = estadoEmbreagem;
       }
     }
@@ -409,6 +410,7 @@ void loop() {
         Serial.println(estadoSetaEsquerda.c_str());
         pCharacteristic->setValue(estadoSetaEsquerda.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
     }
@@ -421,10 +423,10 @@ void loop() {
         Serial.println(estadoSetaEsquerda.c_str());
         pCharacteristic->setValue(estadoSetaEsquerda.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
     }
-//saw your face
     if(estadoInicialSetaDireita == true)
     {
       estadoSetaDireita = "Seta Direita: ";
@@ -434,6 +436,7 @@ void loop() {
         Serial.println(estadoSetaDireita.c_str());
         pCharacteristic->setValue(estadoSetaDireita.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorSetaDireita = estadoSetaDireita;
       }
     }
@@ -446,10 +449,10 @@ void loop() {
         Serial.println(estadoSetaDireita.c_str());
         pCharacteristic->setValue(estadoSetaDireita.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorSetaDireita = estadoSetaDireita;
       }
     }
-
     if(estadoInicialPortaAberta == true)
     {
       estadoPortaAberta = "Porta: ";
@@ -459,6 +462,7 @@ void loop() {
         Serial.println(estadoPortaAberta.c_str());
         pCharacteristic->setValue(estadoPortaAberta.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorPortaAberta = estadoPortaAberta;
       }
     }
@@ -471,10 +475,10 @@ void loop() {
         Serial.println(estadoPortaAberta.c_str());
         pCharacteristic->setValue(estadoPortaAberta.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorPortaAberta = estadoPortaAberta;
       }
     }
-    
     if (estadoInicialFreio == true)
     {
       estadoFreio = "Freio: ";
@@ -484,6 +488,7 @@ void loop() {
         Serial.println(estadoFreio.c_str());
         pCharacteristic->setValue(estadoFreio.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorFreio = estadoFreio;
       }
     }
@@ -496,6 +501,7 @@ void loop() {
         Serial.println(estadoFreio.c_str());
         pCharacteristic->setValue(estadoFreio.c_str());
         pCharacteristic->notify();
+        delay(30);
         estadoAnteriorFreio = estadoFreio;
       }
     } 
