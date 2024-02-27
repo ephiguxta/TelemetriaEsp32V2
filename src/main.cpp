@@ -173,18 +173,20 @@ void setup() {
   gpsSerial.begin(9600, SERIAL_8N1, 23, 22); // RX, TX
 
   String macAddress;
+  uint8_t mac[6];
 
-  //WiFi.macAddress(mac);
-  // Converte o endereço MAC para uma string hexadecimal
-  // for (int i = 0; i < 6; i++)
-  // {
-  //   macAddress += String(mac[i], HEX);
-  //   if (i < 5)
-  //   {
-  //     macAddress += ":";
-  //   }
-  // }
-  // Serial.printf("MAC Address: %s\n", macAddress.c_str());
+  WiFi.macAddress(mac);
+  for (int i = 0; i < 6; i++)
+  {
+    macAddress += String(mac[i], HEX);
+    if (i < 5)
+    {
+      macAddress += ":";
+    }
+  }
+  Serial.printf("MAC Address: %s\n", macAddress.c_str());
+
+  WiFi.begin(ssid, password);
 
   pinMode(pinSetaEsquerda, INPUT_PULLDOWN);
   pinMode(pinSetaDireita, INPUT_PULLDOWN);
