@@ -11,11 +11,6 @@
 #include <BLE2902.h>
 
 const int iteracoes = 50;
-#define SERVICE_UUID "e41f0284-a538-4fee-bdc5-3813f657a3f4"
-#define CHARACTERISTIC_UUID "5f96279b-d61b-4ac1-ac96-56dc0d3afab9"
-BLEServer* pServer = NULL;
-BLECharacteristic* pCharacteristic = NULL;
-bool deviceConnected = false;
 
 // Configuração do módulo GPS
 HardwareSerial gpsSerial(1);
@@ -23,9 +18,6 @@ HardwareSerial gpsSerial(1);
 // The TinyGPS++ object
 TinyGPSPlus gps;
 int channel;
-
-int sppTotalCharsSent = 0;
-uint8_t mac[6];
 
 const char* ssid = "WEB-GPS";
 const char* password = "esp32password";
@@ -47,14 +39,6 @@ boolean estadoInicialSetaDireita;
 boolean estadoInicialPortaAberta;
 boolean estadoInicialFreio;
 boolean estadoInicialEmbreagem;
-
-// The remote service we wish to connect to.
-static BLEUUID serviceUUID("e41f0284-a538-4fee-bdc5-3813f657a3f4");
-// The characteristic of the remote service we are interested in.
-static BLEUUID charUUID("5f96279b-d61b-4ac1-ac96-56dc0d3afab9");
-//Activate notify
-const uint8_t notificationOn[] = {0x1, 0x0};
-const uint8_t notificationOff[] = {0x0, 0x0};
 
 String estadoSetaEsquerda = "desligada";
 String estadoSetaDireita = "desligada";
@@ -188,87 +172,23 @@ void calibrarSensores() {
   Serial.println("Calibração concluída.\n\n\n");
 }
 
-class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-      deviceConnected = true;
-      BLEDevice::startAdvertising();
-      Serial.println("Device Connected");
-    };
-
-    void onDisconnect(BLEServer* pServer) {
-      deviceConnected = false;
-      Serial.println("Device Disconnected");
-    }
-};
-
-class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
-
-    void onNotify(BLECharacteristic *pCharacteristic) {
-      std::string value = pCharacteristic->getValue();
-      if (value.length() > 0) {
-        Serial.print("Notify value: ");
-        for (int i = 0; i < value.length(); i++)
-          Serial.print(value[i]);
-      }
-      Serial.println();
-    }
-}; 
-
-void initBT(String content)
-{
-    // Create the BLE Device
-  BLEDevice::init(std::string(content.c_str()));
-
-  // Create the BLE Server
-  pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new MyServerCallbacks());
-
-  // Create the BLE Service
-  BLEService *pService = pServer->createService(SERVICE_UUID);
-  // Create a BLE Characteristic
-  pCharacteristic = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID,
-                      BLECharacteristic::PROPERTY_READ   |
-                      BLECharacteristic::PROPERTY_WRITE  |
-                      BLECharacteristic::PROPERTY_NOTIFY |
-                      BLECharacteristic::PROPERTY_INDICATE
-                    );
-  //callbacks
-
-  // Create a BLE Descriptor
-  pCharacteristic->addDescriptor(new BLE2902());
-  pCharacteristic->setNotifyProperty(true);
-  pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
-
-  // Start the service
-  pService->start();
-
-  // Start advertising
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(false);
-  pAdvertising->setMinPreferred(0x0);  // set value to 0x00 to not advertise this parameter
-  BLEDevice::startAdvertising();
-  Serial.println("Waiting a client connection to notify...");
-}
-
 void setup() {
   Serial.begin(115200);
   gpsSerial.begin(9600, SERIAL_8N1, 23, 22); // RX, TX
 
   String macAddress;
 
-  WiFi.macAddress(mac);
+  //WiFi.macAddress(mac);
   // Converte o endereço MAC para uma string hexadecimal
-  for (int i = 0; i < 6; i++)
-  {
-    macAddress += String(mac[i], HEX);
-    if (i < 5)
-    {
-      macAddress += ":";
-    }
-  }
-  Serial.printf("MAC Address: %s\n", macAddress.c_str());
+  // for (int i = 0; i < 6; i++)
+  // {
+  //   macAddress += String(mac[i], HEX);
+  //   if (i < 5)
+  //   {
+  //     macAddress += ":";
+  //   }
+  // }
+  // Serial.printf("MAC Address: %s\n", macAddress.c_str());
 
   pinMode(pinSetaEsquerda, INPUT_PULLDOWN);
   pinMode(pinSetaDireita, INPUT_PULLDOWN);
@@ -279,7 +199,6 @@ void setup() {
   pinMode(pinFreio, INPUT_PULLDOWN);
   analogSetAttenuation(ADC_11db);
 
-  initBT("Telemetria_" + macAddress);
   delay(3000); // Aguarda 1 segundo antes de iniciar a calibração
   calibrarSensores();
 }
@@ -296,8 +215,6 @@ void loop() {
   int valorFreio = mediaMilivolts(pinFreio);
   //int valorAcelerador = mediaMilivolts(pinAcelerador);
   
-  if (deviceConnected) 
-  {
     if(estadoInicialCinto == true)
     {
       estadoCintoSeguranca = "Cinto: ";
@@ -305,8 +222,6 @@ void loop() {
       if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
       {
         Serial.println(estadoCintoSeguranca.c_str());
-        pCharacteristic->setValue(estadoCintoSeguranca.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
       }
@@ -318,8 +233,6 @@ void loop() {
       if(estadoAnteriorCintoSeguranca != estadoCintoSeguranca)
       {
         Serial.println(estadoCintoSeguranca.c_str());
-        pCharacteristic->setValue(estadoCintoSeguranca.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorCintoSeguranca = estadoCintoSeguranca;
       }
@@ -331,8 +244,6 @@ void loop() {
       if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
       {
         Serial.println(estadoFreioDeMao.c_str());
-        pCharacteristic->setValue(estadoFreioDeMao.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorFreioDeMao = estadoFreioDeMao;
       }
@@ -344,8 +255,6 @@ void loop() {
       if(estadoAnteriorFreioDeMao != estadoFreioDeMao)
       {
         Serial.println(estadoFreioDeMao.c_str());
-        pCharacteristic->setValue(estadoFreioDeMao.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorFreioDeMao = estadoFreioDeMao;
       }
@@ -358,8 +267,6 @@ void loop() {
       if(estadoEmbreagem != estadoAnteriorEmbreagem)
       {
         Serial.println(estadoEmbreagem.c_str());
-        pCharacteristic->setValue(estadoEmbreagem.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorEmbreagem = estadoEmbreagem;
       }
@@ -371,8 +278,6 @@ void loop() {
       if(estadoEmbreagem != estadoAnteriorEmbreagem)
       {
         Serial.println(estadoEmbreagem.c_str());
-        pCharacteristic->setValue(estadoEmbreagem.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorEmbreagem = estadoEmbreagem;
       }
@@ -385,8 +290,6 @@ void loop() {
       if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
       {
         Serial.println(estadoSetaEsquerda.c_str());
-        pCharacteristic->setValue(estadoSetaEsquerda.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
@@ -398,8 +301,6 @@ void loop() {
       if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
       {
         Serial.println(estadoSetaEsquerda.c_str());
-        pCharacteristic->setValue(estadoSetaEsquerda.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
@@ -411,8 +312,6 @@ void loop() {
       if(estadoAnteriorSetaDireita != estadoSetaDireita)
       {
         Serial.println(estadoSetaDireita.c_str());
-        pCharacteristic->setValue(estadoSetaDireita.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorSetaDireita = estadoSetaDireita;
       }
@@ -424,8 +323,6 @@ void loop() {
       if(estadoAnteriorSetaDireita != estadoSetaDireita)
       {
         Serial.println(estadoSetaDireita.c_str());
-        pCharacteristic->setValue(estadoSetaDireita.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorSetaDireita = estadoSetaDireita;
       }
@@ -437,8 +334,6 @@ void loop() {
       if(estadoAnteriorPortaAberta != estadoPortaAberta)
       {
         Serial.println(estadoPortaAberta.c_str());
-        pCharacteristic->setValue(estadoPortaAberta.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorPortaAberta = estadoPortaAberta;
       }
@@ -450,8 +345,6 @@ void loop() {
       if(estadoAnteriorPortaAberta != estadoPortaAberta)
       {
         Serial.println(estadoPortaAberta.c_str());
-        pCharacteristic->setValue(estadoPortaAberta.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorPortaAberta = estadoPortaAberta;
       }
@@ -463,8 +356,6 @@ void loop() {
       if(estadoAnteriorFreio != estadoFreio)
       {
         Serial.println(estadoFreio.c_str());
-        pCharacteristic->setValue(estadoFreio.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorFreio = estadoFreio;
       }
@@ -476,12 +367,9 @@ void loop() {
       if(estadoAnteriorFreio != estadoFreio)
       {
         Serial.println(estadoFreio.c_str());
-        pCharacteristic->setValue(estadoFreio.c_str());
-        pCharacteristic->notify();
         delay(30);
         estadoAnteriorFreio = estadoFreio;
       }
     } 
-  }
   delay(3000);
 }
