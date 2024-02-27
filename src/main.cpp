@@ -5,10 +5,6 @@
 #include <SoftwareSerial.h>
 #include <HardwareSerial.h>
 #include "WiFi.h"
-#include <BLEDevice.h>
-#include <BLEClient.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
 
 const int iteracoes = 50;
 
