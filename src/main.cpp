@@ -2,7 +2,6 @@
 //#include "heltec.h"
 #include <ESPAsyncWebServer.h>
 #include <TinyGPS++.h>
-#include <SoftwareSerial.h>
 #include <HardwareSerial.h>
 #include "WiFi.h"
 
@@ -22,10 +21,10 @@ const int pinSetaEsquerda = 36; //em teoria tem pulldown
 const int pinSetaDireita = 39;  //em teoria tem pulldown
 const int pinCintoSeguranca = 34; //em teoria nao tem pulldown
 const int pinFreioDeMao = 35; //em teoria nao tem pulldown
-const int pinEmbreagem = 32; //em teoria tem pulldown
+//const int pinEmbreagem = 32; //em teoria tem pulldown
 const int pinPortaAberta = 33; //em teoria tem pulldown @MUDAR
 const int pinFreio = 21; //em teoria tem pulldown @MUDAR
-const int pinAcelerador = 22; //em teoria tem pulldown @MUDAR
+//const int pinAcelerador = 22; //em teoria tem pulldown @MUDAR
 // talvez acelerador?
 // ignição vai ser apenas ver quando ele estiver ligado
 
@@ -60,7 +59,7 @@ String velocidade = "0.0";
 String data = "00/00/00";
 String hora = "00:00:00";
 
-//criar uma função de média movel para filtrar ruido
+//Cria uma função de média movel para filtrar ruidos na leitura
 int mediaMilivolts(int pin)
 {
   int media = 0;
@@ -78,6 +77,7 @@ String formatFloat(float value, int decimalPlaces) {
   return String(buffer);
 }
 
+//Imprime a data no formato dd/mm/yy
 String printData()
 {
     char sz[32];
@@ -85,6 +85,7 @@ String printData()
     return String(sz);
 }
 
+//Imprime a hora no formato hh:mm:ss
 String printHora()
 {
     char sa[32];
@@ -92,7 +93,7 @@ String printHora()
     return String(sa);
 }
 
-
+//Função que lê a latitude do GPS
 String readLatitude() {
   if (gps.location.isValid()) {
     return formatFloat(gps.location.lat(), 6);
@@ -100,6 +101,7 @@ String readLatitude() {
   return "Invalid";
 }
 
+//Função que lê a longitude do GPS
 String readLongitude() {
   if (gps.location.isValid()) {
     return formatFloat(gps.location.lng(), 6);
@@ -107,6 +109,7 @@ String readLongitude() {
   return "Invalid";
 }
 
+//Função que lê a velocidade do GPS
 String readSpeed() {
   if (gps.speed.isValid()) {
     return formatFloat(gps.speed.kmph(), 2);
@@ -114,6 +117,7 @@ String readSpeed() {
   return "Invalid";
 }
 
+//Função que lê a data do GPS
 String readData() {
   if (gps.date.isValid()) {
     return printData();
@@ -121,6 +125,7 @@ String readData() {
   return "Invalid";
 }
 
+//Função que lê a hora do GPS
 String readHora() {
   if (gps.time.isValid()) {
     return printHora();
@@ -128,6 +133,7 @@ String readHora() {
   return "Invalid"; 
 }
 
+//Calibra os sensores antes de iniciar as leituras. Verifica se o valor inicial é ligado ou desligado
 void calibrarSensores() {
   Serial.println("\nIniciando calibração dos sensores. Por favor, aguarde...");
 
@@ -162,9 +168,9 @@ void calibrarSensores() {
   printf("Freio: %s\n", estadoInicialFreio ? "ligado" : "desligado");
 
   // Calibração do sensor de embreagem
-  int leituraEmbreagem = mediaMilivolts(pinEmbreagem);
-  estadoInicialEmbreagem = (leituraEmbreagem > 3000);
-  printf("Embreagem: %s\n", estadoInicialEmbreagem ? "pressionada" : "livre");
+  // int leituraEmbreagem = mediaMilivolts(pinEmbreagem);
+  // estadoInicialEmbreagem = (leituraEmbreagem > 3000);
+  // printf("Embreagem: %s\n", estadoInicialEmbreagem ? "pressionada" : "livre");
 
   Serial.println("Calibração concluída.\n\n\n");
 }
@@ -200,7 +206,7 @@ void setup() {
   pinMode(pinSetaDireita, INPUT_PULLDOWN);
   pinMode(pinCintoSeguranca, INPUT_PULLDOWN);
   pinMode(pinFreioDeMao, INPUT_PULLDOWN);
-  pinMode(pinEmbreagem, INPUT_PULLDOWN);
+  // pinMode(pinEmbreagem, INPUT_PULLDOWN);
   pinMode(pinPortaAberta, INPUT_PULLDOWN);
   pinMode(pinFreio, INPUT_PULLDOWN);
   analogSetAttenuation(ADC_11db);
@@ -216,7 +222,7 @@ void loop() {
   int valorSetaDireita = mediaMilivolts(pinSetaDireita);
   int valorCintoSeguranca = mediaMilivolts(pinCintoSeguranca);
   int valorFreioDeMao = mediaMilivolts(pinFreioDeMao);
-  int valorEmbreagem = mediaMilivolts(pinEmbreagem);
+  //  int valorEmbreagem = mediaMilivolts(pinEmbreagem);
   int valorPortaAberta = mediaMilivolts(pinPortaAberta);
   int valorFreio = analogRead(pinFreio);
   //int valorAcelerador = mediaMilivolts(pinAcelerador);
@@ -266,28 +272,28 @@ void loop() {
       }
     }
 
-    if(estadoInicialEmbreagem == true)
-    {
-      estadoEmbreagem = "Embreagem: ";
-      estadoEmbreagem += (valorEmbreagem > 3000) ? "livre" : "pressionada";
-      if(estadoEmbreagem != estadoAnteriorEmbreagem)
-      {
-        Serial.println(estadoEmbreagem.c_str());
-        delay(30);
-        estadoAnteriorEmbreagem = estadoEmbreagem;
-      }
-    }
-    else
-    {
-      estadoEmbreagem = "Embreagem: ";
-      estadoEmbreagem += (valorEmbreagem > 3000) ? "pressionada" : "livre";
-      if(estadoEmbreagem != estadoAnteriorEmbreagem)
-      {
-        Serial.println(estadoEmbreagem.c_str());
-        delay(30);
-        estadoAnteriorEmbreagem = estadoEmbreagem;
-      }
-    }
+    // if(estadoInicialEmbreagem == true)
+    // {
+    //   estadoEmbreagem = "Embreagem: ";
+    //   estadoEmbreagem += (valorEmbreagem > 3000) ? "livre" : "pressionada";
+    //   if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    //   {
+    //     Serial.println(estadoEmbreagem.c_str());
+    //     delay(30);
+    //     estadoAnteriorEmbreagem = estadoEmbreagem;
+    //   }
+    // }
+    // else
+    // {
+    //   estadoEmbreagem = "Embreagem: ";
+    //   estadoEmbreagem += (valorEmbreagem > 3000) ? "pressionada" : "livre";
+    //   if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    //   {
+    //     Serial.println(estadoEmbreagem.c_str());
+    //     delay(30);
+    //     estadoAnteriorEmbreagem = estadoEmbreagem;
+    //   }
+    // }
 
     if(estadoInicialSetaEsquerda == true)
     {
