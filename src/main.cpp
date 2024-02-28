@@ -137,7 +137,7 @@ void calibrarSensores() {
   printf("Cinto de Segurança: %s\n", estadoInicialCinto ? "ligado" : "desligado");
 
   // Calibração do sensor de freio de mão
-  int leituraFreioMao = mediaMilivolts(pinFreioDeMao);
+  int leituraFreioMao = analogRead(pinFreioDeMao);
   estadoInicialFreioDeMao = (leituraFreioMao > 3000);
   printf("Freio de Mão: %s\n", estadoInicialFreioDeMao ? "ligado" : "desligado");
 
@@ -157,7 +157,7 @@ void calibrarSensores() {
   printf("Porta: %s\n", estadoInicialPortaAberta ? "aberta" : "fechada");
 
   // Calibração do sensor de freio
-  int leituraFreio = mediaMilivolts(pinFreio);
+  int leituraFreio = analogRead(pinFreio);
   estadoInicialFreio = (leituraFreio > 3000);
   printf("Freio: %s\n", estadoInicialFreio ? "ligado" : "desligado");
 
@@ -218,7 +218,7 @@ void loop() {
   int valorFreioDeMao = mediaMilivolts(pinFreioDeMao);
   int valorEmbreagem = mediaMilivolts(pinEmbreagem);
   int valorPortaAberta = mediaMilivolts(pinPortaAberta);
-  int valorFreio = mediaMilivolts(pinFreio);
+  int valorFreio = analogRead(pinFreio);
   //int valorAcelerador = mediaMilivolts(pinAcelerador);
   
     if(estadoInicialCinto == true)
