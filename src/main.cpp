@@ -195,7 +195,7 @@ void setup() {
   Serial.printf("MAC Address: %s\n", macAddress.c_str());
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid);
+  WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
