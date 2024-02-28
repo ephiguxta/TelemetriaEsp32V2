@@ -23,7 +23,7 @@ const int pinCintoSeguranca = 34; //em teoria nao tem pulldown
 const int pinFreioDeMao = 35; //em teoria nao tem pulldown
 //const int pinEmbreagem = 32; //em teoria tem pulldown
 const int pinPortaAberta = 33; //em teoria tem pulldown @MUDAR
-const int pinFreio = 21; //em teoria tem pulldown @MUDAR
+const int pinFreio = 32; //em teoria tem pulldown @MUDAR
 //const int pinAcelerador = 22; //em teoria tem pulldown @MUDAR
 // talvez acelerador?
 // ignição vai ser apenas ver quando ele estiver ligado
@@ -35,7 +35,6 @@ boolean estadoInicialSetaDireita;
 boolean estadoInicialPortaAberta;
 boolean estadoInicialFreio;
 boolean estadoInicialEmbreagem;
-
 String estadoSetaEsquerda = "desligada";
 String estadoSetaDireita = "desligada";
 String estadoCintoSeguranca = "desligado";
@@ -58,6 +57,8 @@ String longitude = "0.0";
 String velocidade = "0.0";
 String data = "00/00/00";
 String hora = "00:00:00";
+
+WiFiClient client;
 
 //Cria uma função de média movel para filtrar ruidos na leitura
 int mediaMilivolts(int pin)
@@ -143,7 +144,7 @@ void calibrarSensores() {
   printf("Cinto de Segurança: %s\n", estadoInicialCinto ? "ligado" : "desligado");
 
   // Calibração do sensor de freio de mão
-  int leituraFreioMao = analogRead(pinFreioDeMao);
+  int leituraFreioMao = mediaMilivolts(pinFreioDeMao);
   estadoInicialFreioDeMao = (leituraFreioMao > 3000);
   printf("Freio de Mão: %s\n", estadoInicialFreioDeMao ? "ligado" : "desligado");
 
@@ -163,7 +164,7 @@ void calibrarSensores() {
   printf("Porta: %s\n", estadoInicialPortaAberta ? "aberta" : "fechada");
 
   // Calibração do sensor de freio
-  int leituraFreio = analogRead(pinFreio);
+  int leituraFreio = mediaMilivolts(pinFreio);
   estadoInicialFreio = (leituraFreio > 3000);
   printf("Freio: %s\n", estadoInicialFreio ? "ligado" : "desligado");
 
@@ -193,14 +194,19 @@ void setup() {
   }
   Serial.printf("MAC Address: %s\n", macAddress.c_str());
 
-  WiFi.begin(ssid, password);
-
-  // Após conectar-se com sucesso, obtenha o endereço IP e a porta local
-  Serial.println("Conectado ao Wi-Fi");
-  Serial.print("Endereço IP: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("Porta local: ");
-  Serial.println(localPort);
+  WiFi.mode(WIFI_STA);
+  if(client.connect("Telemetria", localPort))
+  {
+    Serial.println("Conectado ao Wi-Fi");
+    Serial.print("Endereço IP: ");
+    Serial.println(WiFi.localIP());
+    Serial.print("Porta local: ");
+    Serial.println(localPort);
+  }
+  else
+  {
+    Serial.println("Falha ao conectar ao Wi-Fi");
+  }
 
   pinMode(pinSetaEsquerda, INPUT_PULLDOWN);
   pinMode(pinSetaDireita, INPUT_PULLDOWN);
