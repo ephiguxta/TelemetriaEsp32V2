@@ -15,16 +15,17 @@ HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 int channel;
 
-const char* ssid = "WEB-GPS";
-const char* password = "esp32password";
-const int pinSetaEsquerda = 13; //em teoria tem pulldown
-const int pinSetaDireita = 15;  //em teoria tem pulldown
+const char* ssid = "Telemetria";
+const char* password = "esp32pass";
+const int localPort = 8080;
+const int pinSetaEsquerda = 36; //em teoria tem pulldown
+const int pinSetaDireita = 39;  //em teoria tem pulldown
 const int pinCintoSeguranca = 34; //em teoria nao tem pulldown
 const int pinFreioDeMao = 35; //em teoria nao tem pulldown
 const int pinEmbreagem = 32; //em teoria tem pulldown
-const int pinPortaAberta = 33; //em teoria tem pulldown
-const int pinFreio = 25; //em teoria tem pulldown
-const int pinAcelerador = 4; //em teoria tem pulldown
+const int pinPortaAberta = 33; //em teoria tem pulldown @MUDAR
+const int pinFreio = 21; //em teoria tem pulldown @MUDAR
+const int pinAcelerador = 22; //em teoria tem pulldown @MUDAR
 // talvez acelerador?
 // ignição vai ser apenas ver quando ele estiver ligado
 
@@ -187,6 +188,13 @@ void setup() {
   Serial.printf("MAC Address: %s\n", macAddress.c_str());
 
   WiFi.begin(ssid, password);
+
+  // Após conectar-se com sucesso, obtenha o endereço IP e a porta local
+  Serial.println("Conectado ao Wi-Fi");
+  Serial.print("Endereço IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Porta local: ");
+  Serial.println(localPort);
 
   pinMode(pinSetaEsquerda, INPUT_PULLDOWN);
   pinMode(pinSetaDireita, INPUT_PULLDOWN);
