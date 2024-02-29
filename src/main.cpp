@@ -227,7 +227,32 @@ void setup() {
   calibrarSensores();
 }
 
+void readResponse(WiFiClient *client){
+  unsigned long timeout = millis();
+  while(client->available() == 0){
+    if(millis() - timeout > 5000){
+      Serial.println(">>> Client Timeout !");
+      client->stop();
+      return;
+    }
+  }
+
+  // Read all the lines of the reply from server and print them to Serial
+  while(client->available()) {
+    String line = client->readStringUntil('\r');
+    Serial.print(line);
+  }
+
+  Serial.printf("\nClosing connection\n\n");
+}
+
 void loop() {
+  WiFiClient client;
+
+  // WRITE --------------------------------------------------------------------------------------------
+  if (!client.connect(ssid, localPort)) {
+    return;
+  }
 
   // Leitura do estado dos sensores
   int valorSetaEsquerda = mediaMilivolts(pinSetaEsquerda);
@@ -314,6 +339,7 @@ void loop() {
       if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
       {
         Serial.println(estadoSetaEsquerda.c_str());
+        client.print(estadoSetaEsquerda.c_str());
         delay(30);
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
@@ -325,6 +351,7 @@ void loop() {
       if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
       {
         Serial.println(estadoSetaEsquerda.c_str());
+        client.print(estadoSetaEsquerda.c_str());
         delay(30);
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
@@ -336,6 +363,7 @@ void loop() {
       if(estadoAnteriorSetaDireita != estadoSetaDireita)
       {
         Serial.println(estadoSetaDireita.c_str());
+        client.print(estadoSetaDireita.c_str());
         delay(30);
         estadoAnteriorSetaDireita = estadoSetaDireita;
       }
@@ -347,6 +375,7 @@ void loop() {
       if(estadoAnteriorSetaDireita != estadoSetaDireita)
       {
         Serial.println(estadoSetaDireita.c_str());
+        client.print(estadoSetaDireita.c_str());
         delay(30);
         estadoAnteriorSetaDireita = estadoSetaDireita;
       }
