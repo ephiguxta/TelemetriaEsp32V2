@@ -398,7 +398,7 @@ void loop() {
       {
         Serial.println(estadoPortaAberta.c_str());
         delay(30);
-        estadoAnteriorPortaAberta = estadoPortaAberta;//#include <ESPAsyncWebServer.h>
+        estadoAnteriorPortaAberta = estadoPortaAberta;
       }
     }
     else
