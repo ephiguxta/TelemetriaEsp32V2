@@ -1,10 +1,14 @@
 #include "Arduino.h"
-//#include "heltec.h"
-#include <ESPAsyncWebServer.h>
 #include <TinyGPS++.h>
 #include <HardwareSerial.h>
-#include "WiFi.h"
+#include <ArduinoWebsockets.h>
+#include <WiFi.h>
 
+#include "wifi.h"
+#include "websockets.h"
+
+websockets::WebsocketsClient client;
+ 
 const int iteracoes = 50;
 
 // Configuração do módulo GPS
@@ -14,10 +18,7 @@ HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 int channel;
 
-const char* ssid = "Telemetria";
-const char* password = "esp32pass";
-const int localPort = 8080;
-const int pinSetaEsquerda = 36; //em teoria tem pulldown
+const int pinSetaEsquerda = 14; //em teoria tem pulldown
 const int pinSetaDireita = 39;  //em teoria tem pulldown
 const int pinCintoSeguranca = 34; //em teoria nao tem pulldown
 const int pinFreioDeMao = 35; //em teoria nao tem pulldown
@@ -35,7 +36,8 @@ boolean estadoInicialSetaDireita;
 boolean estadoInicialPortaAberta;
 boolean estadoInicialFreio;
 boolean estadoInicialEmbreagem;
-String estadoSetaEsquerda = "desligada";
+
+bool estadoSetaEsquerda = false;
 String estadoSetaDireita = "desligada";
 String estadoCintoSeguranca = "desligado";
 String estadoFreioDeMao = "desligado";
@@ -44,7 +46,7 @@ String estadoFreio = "desligado";
 String estadoEmbreagem = "livre"; // Inicializado com um valor que não é possível para garantir a primeira impressão
 int estadoAcelerador = -1; // Inicializado com um valor que não é possível para garantir a primeira impressão
 
-String estadoAnteriorSetaEsquerda = "desligada";
+bool estadoAnteriorSetaEsquerda = false;
 String estadoAnteriorSetaDireita = "desligada";
 String estadoAnteriorCintoSeguranca = "desligado";
 String estadoAnteriorFreioDeMao = "desligado";
@@ -57,8 +59,6 @@ String longitude = "0.0";
 String velocidade = "0.0";
 String data = "00/00/00";
 String hora = "00:00:00";
-
-WiFiClient client;
 
 //Cria uma função de média movel para filtrar ruidos na leitura
 int mediaMilivolts(int pin)
@@ -148,17 +148,30 @@ void calibrarSensores() {
   estadoInicialFreioDeMao = (leituraFreioMao > 3000);
   printf("Freio de Mão: %s\n", estadoInicialFreioDeMao ? "ligado" : "desligado");
 
+  /*
   // Calibração do sensor de seta esquerda
   int leituraSetaEsquerda = mediaMilivolts(pinSetaEsquerda);
   estadoInicialSetaEsquerda = (leituraSetaEsquerda > 3000);
   printf("Seta Esquerda: %s\n", estadoInicialSetaEsquerda ? "ligada" : "desligada");
+  */
 //
   // Calibração do sensor de seta direita
   int leituraSetaDireita = mediaMilivolts(pinSetaDireita);
   estadoInicialSetaDireita = (leituraSetaDireita > 3000);
   printf("Seta Direita: %s\n", estadoInicialSetaDireita ? "ligada" : "desligada");
 
-  // Calibração do sensor de porta aberta
+  // Calibração do sensor de porta abert);
+    //     delay(30);
+    //     estadoAnteriorEmbreagem = estadoEmbreagem;
+    //   }
+    // }
+    // else
+    // {
+    //   estadoEmbreagem = "Embreagem: ";
+    //   estadoEmbreagem += (valorEmbreagem > 3000) ? "pressionada" : "livre";
+    //   if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    //   {
+    //     Serial.println(estadoEmbreagem.c_str()a
   int leituraPortaAberta = mediaMilivolts(pinPortaAberta);
   estadoInicialPortaAberta = (leituraPortaAberta > 3000);
   printf("Porta: %s\n", estadoInicialPortaAberta ? "aberta" : "fechada");
@@ -168,12 +181,39 @@ void calibrarSensores() {
   estadoInicialFreio = (leituraFreio > 3000);
   printf("Freio: %s\n", estadoInicialFreio ? "ligado" : "desligado");
 
+    //     delay(30);
+    //     estadoAnteriorEmbreagem = estadoEmbreagem;
+    //   }
+    // }
+    // else
+    // {
+    //   estadoEmbreagem = "Embreagem: ";
+    //   estadoEmbreagem += (valorEmbreagem > 3000) ? "pressionada" : "livre";
+    //   if(estadoEmbreagem != estadoAnteriorEmbreagem)
+    //   {
+    //     Serial.println(estadoEmbreagem.c_str()
   // Calibração do sensor de embreagem
   // int leituraEmbreagem = mediaMilivolts(pinEmbreagem);
   // estadoInicialEmbreagem = (leituraEmbreagem > 3000);
   // printf("Embreagem: %s\n", estadoInicialEmbreagem ? "pressionada" : "livre");
 
   Serial.println("Calibração concluída.\n\n\n");
+}
+
+void conn_websocket(){
+  bool connected = false;
+
+  Serial.print("(websockets) Tentando conectar em ");
+  Serial.printf("%s:%d\n", websockets_server_host, websockets_server_port);
+
+  while(!connected) {
+    connected = client.connect(websockets_server_host, websockets_server_port, "/");
+    Serial.print(".");
+
+    delay(500);
+  }
+
+  Serial.println("(websockets) Conectado!");
 }
 
 void setup() {
@@ -195,26 +235,16 @@ void setup() {
   Serial.printf("MAC Address: %s\n", macAddress.c_str());
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid, passwd);
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
     Serial.println("Conectando ao Wi-Fi...");
   }
-  // if(client.connect("Telemetria", localPort))
-  // {
-  //   Serial.println("Conectado ao Wi-Fi");
-  //   Serial.print("Endereço IP: ");
-  //   Serial.println(WiFi.localIP());
-  //   Serial.print("Porta local: ");
-  //   Serial.println(localPort);
-  // }
-  // else
-  // {
-  //   Serial.println("Falha ao conectar ao Wi-Fi");
-  // }
 
-  pinMode(pinSetaEsquerda, INPUT_PULLDOWN);
+  //pinMode(pinSetaEsquerda, INPUT_PULLDOWN);
+  pinMode(pinSetaEsquerda, INPUT);
+
   pinMode(pinSetaDireita, INPUT_PULLDOWN);
   pinMode(pinCintoSeguranca, INPUT_PULLDOWN);
   pinMode(pinFreioDeMao, INPUT_PULLDOWN);
@@ -227,35 +257,10 @@ void setup() {
   calibrarSensores();
 }
 
-void readResponse(WiFiClient *client){
-  unsigned long timeout = millis();
-  while(client->available() == 0){
-    if(millis() - timeout > 5000){
-      Serial.println(">>> Client Timeout !");
-      client->stop();
-      return;
-    }
-  }
-
-  // Read all the lines of the reply from server and print them to Serial
-  while(client->available()) {
-    String line = client->readStringUntil('\r');
-    Serial.print(line);
-  }
-
-  Serial.printf("\nClosing connection\n\n");
-}
-
 void loop() {
-  WiFiClient client;
-
-  // WRITE --------------------------------------------------------------------------------------------
-  if (!client.connect(ssid, localPort)) {
-    return;
-  }
-
   // Leitura do estado dos sensores
-  int valorSetaEsquerda = mediaMilivolts(pinSetaEsquerda);
+  // int valorSetaEsquerda = mediaMilivolts(pinSetaEsquerda);
+
   int valorSetaDireita = mediaMilivolts(pinSetaDireita);
   int valorCintoSeguranca = mediaMilivolts(pinCintoSeguranca);
   int valorFreioDeMao = mediaMilivolts(pinFreioDeMao);
@@ -263,7 +268,7 @@ void loop() {
   int valorPortaAberta = mediaMilivolts(pinPortaAberta);
   int valorFreio = analogRead(pinFreio);
   //int valorAcelerador = mediaMilivolts(pinAcelerador);
-  
+
     if(estadoInicialCinto == true)
     {
       estadoCintoSeguranca = "Cinto: ";
@@ -332,6 +337,7 @@ void loop() {
     //   }
     // }
 
+    /*
     if(estadoInicialSetaEsquerda == true)
     {
       estadoSetaEsquerda = "Seta Esquerda: ";
@@ -339,7 +345,6 @@ void loop() {
       if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
       {
         Serial.println(estadoSetaEsquerda.c_str());
-        client.print(estadoSetaEsquerda.c_str());
         delay(30);
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
@@ -351,11 +356,18 @@ void loop() {
       if(estadoAnteriorSetaEsquerda != estadoSetaEsquerda)
       {
         Serial.println(estadoSetaEsquerda.c_str());
-        client.print(estadoSetaEsquerda.c_str());
         delay(30);
         estadoAnteriorSetaEsquerda = estadoSetaEsquerda;
       }
     }
+    */
+
+    if(digitalRead(pinSetaEsquerda) == HIGH) {
+      estadoSetaEsquerda = true;
+    } else {
+      estadoSetaEsquerda = false;
+    }
+
     if(estadoInicialSetaDireita == true)
     {
       estadoSetaDireita = "Seta Direita: ";
@@ -363,7 +375,6 @@ void loop() {
       if(estadoAnteriorSetaDireita != estadoSetaDireita)
       {
         Serial.println(estadoSetaDireita.c_str());
-        client.print(estadoSetaDireita.c_str());
         delay(30);
         estadoAnteriorSetaDireita = estadoSetaDireita;
       }
@@ -375,7 +386,6 @@ void loop() {
       if(estadoAnteriorSetaDireita != estadoSetaDireita)
       {
         Serial.println(estadoSetaDireita.c_str());
-        client.print(estadoSetaDireita.c_str());
         delay(30);
         estadoAnteriorSetaDireita = estadoSetaDireita;
       }
@@ -388,7 +398,7 @@ void loop() {
       {
         Serial.println(estadoPortaAberta.c_str());
         delay(30);
-        estadoAnteriorPortaAberta = estadoPortaAberta;
+        estadoAnteriorPortaAberta = estadoPortaAberta;//#include <ESPAsyncWebServer.h>
       }
     }
     else
@@ -423,6 +433,20 @@ void loop() {
         delay(30);
         estadoAnteriorFreio = estadoFreio;
       }
-    } 
-  delay(3000);
+    }
+	
+  if(client.available()) {
+    
+    if(estadoSetaEsquerda) {
+      client.send("true");
+    } else {
+      client.send("false");
+    }
+    
+  } else {
+    // FIXME: isso pode se tornar loop infinito
+    conn_websocket();
+  }
+  delay(1000);
 }
+
